@@ -16,12 +16,12 @@ source("./CNTiming/R/simulate_functions.R")
 source("./CNTiming/R/fitting_functions.R")
 source("./CNTiming/R/plotting_functions.R")
 
-number_events = 3  #3, 10
-number_clocks = 3
+number_events = 6
+number_clocks = 2
 
 INIT = FALSE
 epsilon = 0.20
-n_simulations = 1
+n_simulations = 10
 purity = 0.99
 
 vector_karyo <- c("2:0", "2:1", "2:2")
