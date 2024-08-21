@@ -21,12 +21,13 @@ number_clocks = 3
 
 INIT = FALSE
 epsilon = 0.20
-n_simulations = 10
+n_simulations = 1
 purity = 0.99
 
 vector_karyo <- c("2:0", "2:1", "2:2")
 weights_karyo <- c(0.33, 0.33, 0.33)
 
+options(bitmapType='cairo')
 
 
 for(i in 1:n_simulations){
@@ -61,7 +62,7 @@ for(i in 1:n_simulations){
     geom_histogram(alpha = .5, position = "identity") +
     facet_wrap(vars(karyotype, tau, j))
   
-  ggsave("./plots/original_data.png", plot = plot_data, width = 12, height = 10,   device = pdf)
+  ggsave("./plots/original_data.png", plot = plot_data, width = 12, height = 10,   device = png)
   # device = function(...) png(..., type = "cairo")
 
   simulation_params <- list(
@@ -161,7 +162,7 @@ for(i in 1:n_simulations){
   
   
   
-  ggsave("./plots/model_selection_plot.png", plot = model_selection_plot, width = 12, height = 10,  device = pdf)
+  ggsave("./plots/model_selection_plot.png", plot = model_selection_plot, width = 12, height = 10,  device = png)
   saveRDS(model_selection, "model_selection.rds")
   
   
