@@ -8,7 +8,7 @@ library(dplyr)
 
 #setwd("C:/Users/sarac/CDS_git/Copy-Number-Timing/CopyNumber/")
 #orfeo
-setwd("/orfeo/cephfs/scratch/cdslab/scocomello/Copy-Number-Timing/CopyNumber")
+setwd("/orfeo/cephfs/scratch/cdslab/scocomello/Copy_Number_Timing/CopyNumber")
 
 original_dir <- getwd()
 
