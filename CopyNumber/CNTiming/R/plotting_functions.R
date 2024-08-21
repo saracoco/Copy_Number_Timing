@@ -73,13 +73,14 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
   accepted_mutations <- readRDS("results/accepted_mutations.rds")
   
-  Subtitle <- vector("list", length(unique(accepted_mutations$segment_id)))
+  Subtitle <- vector("list", (length(unique(accepted_mutations$segment_id))+1))
 
     for (i in seq_along(unique(accepted_mutations$segment_id))) {
     segment <- unique(accepted_mutations$segment_id)[i]
     num_mutations <- nrow(accepted_mutations %>% filter(segment_id == segment))
-    Subtitle[[i]] <- paste0("Number of mutations in ", segment, ": ", num_mutations," ")
+    Subtitle[[i]] <- paste0("Seg ", segment, "= ", num_mutations," ")
   }
+  Subtitle[[length(unique(accepted_mutations$segment_id))+1]] <- paste0("Number of mutations per segment: ")
   
   Subtitle <- paste(Subtitle, collapse = "   ")
   

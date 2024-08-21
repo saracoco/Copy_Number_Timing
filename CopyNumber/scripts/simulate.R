@@ -16,8 +16,8 @@ source("./CNTiming/R/simulate_functions.R")
 source("./CNTiming/R/fitting_functions.R")
 source("./CNTiming/R/plotting_functions.R")
 
-number_events = 10
-number_clocks = 2
+number_events = 6
+number_clocks = 3
 
 INIT = FALSE
 epsilon = 0.20
