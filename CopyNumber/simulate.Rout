@@ -65,8 +65,8 @@ The following objects are masked from ‘package:base’:
 > source("./CNTiming/R/fitting_functions.R")
 > source("./CNTiming/R/plotting_functions.R")
 > 
-> number_events = 10
-> number_clocks = 2
+> number_events = 6
+> number_clocks = 3
 > 
 > INIT = FALSE
 > epsilon = 0.20
@@ -219,16 +219,12 @@ The following objects are masked from ‘package:base’:
 +   setwd(original_dir)
 +   
 + }
-[1] 0.6746307
-[1] 0.6746307
 [1] 0.413921
 [1] 0.413921
 [1] 0.6746307
 [1] 0.413921
 [1] 0.6746307
 [1] 0.413921
-[1] 0.413921
-[1] 0.413921
 `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
 ------------------------------------------------------------ 
@@ -236,8 +232,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.00392 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 39.2 seconds. 
+Gradient evaluation took 0.002125 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 21.25 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -248,12 +244,12 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -13913.811             1.000            1.000 
-   200       -13914.243             0.500            1.000 
-   300       -13914.051             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100        -8361.812             1.000            1.000 
+   200        -8361.803             0.500            1.000 
+   300        -8361.083             0.333            0.000   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  10.4 seconds.
+Finished in  6.4 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -269,8 +265,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.006242 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 62.42 seconds. 
+Gradient evaluation took 0.003663 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 36.63 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -281,12 +277,12 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -13827.394             1.000            1.000 
-   200       -13825.300             0.500            1.000 
-   300       -13825.973             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100        -8341.760             1.000            1.000 
+   200        -8340.511             0.500            1.000 
+   300        -8339.737             0.333            0.000   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  14.9 seconds.
+Finished in  8.5 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -302,8 +298,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.008601 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 86.01 seconds. 
+Gradient evaluation took 0.005142 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 51.42 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -314,12 +310,12 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -13836.057             1.000            1.000 
-   200       -13834.944             0.500            1.000 
-   300       -13833.254             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100        -8345.892             1.000            1.000 
+   200        -8353.464             0.500            1.000 
+   300        -8344.550             0.334            0.001   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  21.7 seconds.
+Finished in  11.4 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -335,8 +331,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.011902 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 119.02 seconds. 
+Gradient evaluation took 0.005321 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 53.21 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -347,12 +343,52 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -13834.439             1.000            1.000 
-   200       -13835.524             0.500            1.000 
-   300       -13835.077             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100        -8344.715             1.000            1.000 
+   200        -8343.248             0.500            1.000 
+   300        -8343.194             0.333            0.000   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  19.7 seconds.
+Finished in  10.0 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.2450189
+[1] 0.2450189
+[1] 0.8379371
+[1] 0.2450189
+[1] 0.2450189
+[1] 0.004198639
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.002693 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 26.93 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -11353.087             1.000            1.000 
+   200       -11353.106             0.500            1.000 
+   300       -11353.772             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.7 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -368,8 +404,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.014561 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 145.61 seconds. 
+Gradient evaluation took 0.004837 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 48.37 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -380,12 +416,12 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -13848.016             1.000            1.000 
-   200       -13844.739             0.500            1.000 
-   300       -13844.788             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100       -10968.929             1.000            1.000 
+   200       -10956.051             0.501            1.000 
+   300       -10956.850             0.334            0.001   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  23.0 seconds.
+Finished in  11.4 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -401,8 +437,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.006425 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 64.25 seconds. 
+Gradient evaluation took 0.006902 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 69.02 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -413,56 +449,12 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -13828.296             1.000            1.000 
-   200       -13825.862             0.500            1.000 
-   300       -13825.552             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100       -10965.159             1.000            1.000 
+   200       -10964.150             0.500            1.000 
+   300       -10963.381             0.333            0.000   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  15.1 seconds.
-Fit succeeded in attempt 1
-Inference completed successfully.
-Scale for x is already present.
-Adding another scale for x, which will replace the existing scale.
-`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-[1] 0.02102197
-[1] 0.02102197
-[1] 0.2575581
-[1] 0.02102197
-[1] 0.02102197
-[1] 0.2575581
-[1] 0.2575581
-[1] 0.02102197
-[1] 0.2575581
-[1] 0.02102197
-`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
------------------------------------------------------------- 
-EXPERIMENTAL ALGORITHM: 
-  This procedure has not been thoroughly tested and may be unstable 
-  or buggy. The interface is subject to change. 
------------------------------------------------------------- 
-Gradient evaluation took 0.003853 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 38.53 seconds. 
-Adjust your expectations accordingly! 
-Begin eta adaptation. 
-Iteration:   1 / 250 [  0%]  (Adaptation) 
-Iteration:  50 / 250 [ 20%]  (Adaptation) 
-Iteration: 100 / 250 [ 40%]  (Adaptation) 
-Iteration: 150 / 250 [ 60%]  (Adaptation) 
-Iteration: 200 / 250 [ 80%]  (Adaptation) 
-Success! Found best value [eta = 1] earlier than expected. 
-Begin stochastic gradient ascent. 
-  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -14652.090             1.000            1.000 
-   200       -14651.678             0.500            1.000 
-   300       -14652.256             0.333            0.000   MEDIAN ELBO CONVERGED 
-Drawing a sample of size 1000 from the approximate posterior...  
-COMPLETED. 
-Finished in  12.5 seconds.
+Finished in  14.2 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -478,8 +470,8 @@ EXPERIMENTAL ALGORITHM:
   This procedure has not been thoroughly tested and may be unstable 
   or buggy. The interface is subject to change. 
 ------------------------------------------------------------ 
-Gradient evaluation took 0.007549 seconds 
-1000 transitions using 10 leapfrog steps per transition would take 75.49 seconds. 
+Gradient evaluation took 0.004765 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 47.65 seconds. 
 Adjust your expectations accordingly! 
 Begin eta adaptation. 
 Iteration:   1 / 250 [  0%]  (Adaptation) 
@@ -490,12 +482,12 @@ Iteration: 200 / 250 [ 80%]  (Adaptation)
 Success! Found best value [eta = 1] earlier than expected. 
 Begin stochastic gradient ascent. 
   iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
-   100       -14555.680             1.000            1.000 
-   200       -14553.771             0.500            1.000 
-   300       -14554.712             0.333            0.000   MEDIAN ELBO CONVERGED 
+   100       -10957.367             1.000            1.000 
+   200       -10956.075             0.500            1.000 
+   300       -10957.011             0.333            0.000   MEDIAN ELBO CONVERGED 
 Drawing a sample of size 1000 from the approximate posterior...  
 COMPLETED. 
-Finished in  17.5 seconds.
+Finished in  12.1 seconds.
 Fit succeeded in attempt 1
 Inference completed successfully.
 Scale for x is already present.
@@ -505,3 +497,1121 @@ Adding another scale for x, which will replace the existing scale.
 `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.8617799
+[1] 0.5671311
+[1] 0.2164117
+[1] 0.2164117
+[1] 0.2164117
+[1] 0.5671311
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.001859 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 18.59 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -7137.329             1.000            1.000 
+   200        -7137.658             0.500            1.000 
+   300        -7137.240             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  5.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00334 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 33.4 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -6957.717             1.000            1.000 
+   200        -6956.925             0.500            1.000 
+   300        -6956.724             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  7.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004644 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 46.44 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -6966.837             1.000            1.000 
+   200        -6965.653             0.500            1.000 
+   300        -6966.692             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  10.5 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003367 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 33.67 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -6957.380             1.000            1.000 
+   200        -6956.465             0.500            1.000 
+   300        -6956.846             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  7.4 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.4904907
+[1] 0.2621569
+[1] 0.9199992
+[1] 0.2621569
+[1] 0.4904907
+[1] 0.2621569
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.002526 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 25.26 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10734.627             1.000            1.000 
+   200       -10734.263             0.500            1.000 
+   300       -10734.577             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.0 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004556 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 45.56 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10604.354             1.000            1.000 
+   200       -10603.839             0.500            1.000 
+   300       -10604.597             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  11.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00657 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 65.7 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10607.656             1.000            1.000 
+   200       -10607.257             0.500            1.000 
+   300       -10607.628             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  13.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004505 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 45.05 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10606.827             1.000            1.000 
+   200       -10607.980             0.500            1.000 
+   300       -10603.323             0.334            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  11.3 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.225695
+[1] 0.225695
+[1] 0.7686669
+[1] 0.7686669
+[1] 0.225695
+[1] 0.5503412
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.001876 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 18.76 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -7792.236             1.000            1.000 
+   200        -7789.500             0.500            1.000 
+   300        -7790.931             0.334            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  5.9 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003429 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 34.29 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -7663.629             1.000            1.000 
+   200        -7664.208             0.500            1.000 
+   300        -7663.560             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.9 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004936 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 49.36 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -7668.826             1.000            1.000 
+   200        -7669.158             0.500            1.000 
+   300        -7667.046             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  9.4 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003527 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 35.27 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -7664.094             1.000            1.000 
+   200        -7662.961             0.500            1.000 
+   300        -7663.357             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.0 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.6777402
+[1] 0.4580051
+[1] 0.06336656
+[1] 0.4580051
+[1] 0.06336656
+[1] 0.6777402
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00238 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 23.8 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -9947.025             1.000            1.000 
+   200        -9948.863             0.500            1.000 
+   300        -9947.107             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.0 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00434 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 43.4 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -9741.087             1.000            1.000 
+   200        -9739.628             0.500            1.000 
+   300        -9741.296             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  10.7 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.006291 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 62.91 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -9749.996             1.000            1.000 
+   200        -9747.702             0.500            1.000 
+   300        -9746.552             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  12.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004287 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 42.87 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -9740.541             1.000            1.000 
+   200        -9742.909             0.500            1.000 
+   300        -9740.848             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  9.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.2019807
+[1] 0.8377416
+[1] 0.5047706
+[1] 0.8377416
+[1] 0.2019807
+[1] 0.5047706
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00206 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 20.6 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8437.401             1.000            1.000 
+   200        -8436.862             0.500            1.000 
+   300        -8437.087             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  6.9 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00381 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 38.1 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8163.333             1.000            1.000 
+   200        -8163.316             0.500            1.000 
+   300        -8162.978             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.1 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.005819 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 58.19 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8177.848             1.000            1.000 
+   200        -8172.088             0.500            1.000 
+   300        -8171.449             0.334            0.001   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  10.5 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003819 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 38.19 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8166.172             1.000            1.000 
+   200        -8163.204             0.500            1.000 
+   300        -8163.046             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.5 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.3751835
+[1] 0.3751835
+[1] 0.3751835
+[1] 0.3751835
+[1] 0.6342157
+[1] 0.6342157
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.002098 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 20.98 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8685.498             1.000            1.000 
+   200        -8685.332             0.500            1.000 
+   300        -8685.499             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  6.7 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003756 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 37.56 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8676.373             1.000            1.000 
+   200        -8675.037             0.500            1.000 
+   300        -8673.243             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  9.1 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.005642 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 56.42 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8676.893             1.000            1.000 
+   200        -8677.937             0.500            1.000 
+   300        -8678.085             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  11.9 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003809 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 38.09 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -8674.040             1.000            1.000 
+   200        -8673.953             0.500            1.000 
+   300        -8673.505             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  9.5 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.2399983
+[1] 0.7394382
+[1] 0.7394382
+[1] 0.4640225
+[1] 0.2399983
+[1] 0.4640225
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.002337 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 23.37 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10302.537             1.000            1.000 
+   200       -10301.337             0.500            1.000 
+   300       -10300.805             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  7.7 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00443 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 44.3 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10145.865             1.000            1.000 
+   200       -10145.856             0.500            1.000 
+   300       -10145.812             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  10.9 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.006324 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 63.24 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10152.186             1.000            1.000 
+   200       -10151.637             0.500            1.000 
+   300       -10149.291             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  12.1 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004459 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 44.59 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -10152.275             1.000            1.000 
+   200       -10147.956             0.500            1.000 
+   300       -10146.423             0.334            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  9.8 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+[1] 0.1371991
+[1] 0.9982412
+[1] 0.5704987
+[1] 0.1371991
+[1] 0.1371991
+[1] 0.9982412
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00194 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 19.4 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -7506.084             1.000            1.000 
+   200        -7506.556             0.500            1.000 
+   300        -7505.962             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  6.1 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.003493 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 34.93 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -6891.539             1.000            1.000 
+   200        -6890.186             0.500            1.000 
+   300        -6892.264             0.333            0.000   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  8.7 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.004992 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 49.92 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -6906.553             1.000            1.000 
+   200        -6902.745             0.500            1.000 
+   300        -6898.585             0.334            0.001   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  9.7 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+Attempt 1 with 10000 iterations, 1 grad_samples, and 100 elbo_samples
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.00357 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 35.7 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100        -6889.589             1.000            1.000 
+   200        -6889.098             0.500            1.000 
+   300        -6892.687             0.334            0.001   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 1000 from the approximate posterior...  
+COMPLETED. 
+Finished in  7.9 seconds.
+Fit succeeded in attempt 1
+Inference completed successfully.
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> 
+> proc.time()
+    user   system  elapsed 
+1640.126  101.479 1732.931 

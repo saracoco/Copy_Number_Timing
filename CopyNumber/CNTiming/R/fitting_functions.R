@@ -11,7 +11,7 @@
 
 fit_single_segments = function(all_sim, alpha = .05, purity = 1){
   # FIRST OPTION: run single segment inference for initialization of tau and w
-  m_single <- cmdstanr::cmdstan_model("models/mixture_CNA_timing_binomial.stan")
+  m_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
 
   #prepare data for single segment inference
   n_segments = length(table(all_sim$j))
@@ -268,7 +268,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
 library(cmdstanr)
 
 fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 10000, grad_samples = 1, elbo_samples = 100) {
-  model <- cmdstanr::cmdstan_model("../models/timing_mixed_simple.stan")
+  model <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
   attempt <- 0
   fit_successful <- FALSE
   res <- NULL

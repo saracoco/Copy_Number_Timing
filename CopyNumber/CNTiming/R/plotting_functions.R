@@ -71,21 +71,21 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
    
   
-  accepted_mutations <- readRDS("results/accepted_mutations.rds")
+  accepted_mutations <- readRDS("results/accepted_mutations.rds") #giveas input do not call it from inside the function for the package
   
   Subtitle <- vector("list", (length(unique(accepted_mutations$segment_id))+1))
+  Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
 
     for (i in seq_along(unique(accepted_mutations$segment_id))) {
     segment <- unique(accepted_mutations$segment_id)[i]
     num_mutations <- nrow(accepted_mutations %>% filter(segment_id == segment))
-    Subtitle[[i]] <- paste0("Seg ", segment, "= ", num_mutations," ")
+    Subtitle[[i+1]] <- paste0(segment, "= ", num_mutations," ")
   }
-  Subtitle[[length(unique(accepted_mutations$segment_id))+1]] <- paste0("Number of mutations per segment: ")
   
   Subtitle <- paste(Subtitle, collapse = "   ")
   
   
-  accepted_mutations %>% mutate (tau = round(tau, 2))
+  accepted_mutations = accepted_mutations %>% mutate (tau = round(tau, 2))
     plot_filtered_data <- accepted_mutations %>%
     ggplot(mapping = aes(x = NV / DP, fill = as.factor(segment_id))) +
     geom_histogram(alpha = .5, position = "identity") +
@@ -157,7 +157,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     
 
     final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / (ppc | intervals_compare) / (mean_compare|max_compare|min_compare|median_compare) +
-      plot_layout(widths = c(8, 6, 6, 8, 8), heights = c(8, 15 + simulation_params$number_events, 15 + simulation_params$number_events , 8, 8)) +
+      plot_layout(widths = c(8, 6, 6, 8, 8), heights = c(8, 15 + simulation_params$number_events + (simulation_params$number_events/2) , 15 + simulation_params$number_events + (simulation_params$number_events/2) , 8 (simulation_params$number_events/2), 8 + (simulation_params$number_events/2))) +
       plot_annotation(
         title = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity ),
         subtitle = " ",
