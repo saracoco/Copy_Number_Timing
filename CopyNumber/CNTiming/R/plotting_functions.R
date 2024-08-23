@@ -157,7 +157,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     
 
     final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / (ppc | intervals_compare) / (mean_compare|max_compare|min_compare|median_compare) +
-      plot_layout(widths = c(8, 6, 6, 8, 8), heights = c(8, 15 + simulation_params$number_events + (simulation_params$number_events/2) , 15 + simulation_params$number_events + (simulation_params$number_events/2) , 8 (simulation_params$number_events/2), 8 + (simulation_params$number_events/2))) +
+      plot_layout(widths = c(8, 6, 6, 8, 8), heights = c(8, 15 + simulation_params$number_events + (simulation_params$number_events/2) , 15 + simulation_params$number_events + (simulation_params$number_events/2) , 8 + (simulation_params$number_events/2), 8 + (simulation_params$number_events/2))) +
       plot_annotation(
         title = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity ),
         subtitle = " ",

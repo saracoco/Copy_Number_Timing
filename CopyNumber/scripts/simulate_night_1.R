@@ -25,7 +25,7 @@ number_events = 10
 number_clocks = 3
 
 INIT = FALSE
-epsilon = 0.20
+epsilon = 0.15
 n_simulations = 10
 purity = 0.99
 
