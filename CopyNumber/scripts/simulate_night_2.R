@@ -4,6 +4,7 @@ library(bayesplot)
 library(cmdstanr)
 library(factoextra)
 library(dplyr)
+library(stringr)
 
 
 #setwd("C:/Users/sarac/CDS_git/Copy-Number-Timing/CopyNumber/")
@@ -26,7 +27,7 @@ number_clocks = 3
 
 INIT = FALSE
 epsilon = 0.20
-n_simulations = 10
+n_simulations = 20
 purity = 0.99
 
 vector_karyo <- c("2:0", "2:1", "2:2")
@@ -65,14 +66,6 @@ for(i in 1:n_simulations){
   data_sim <- all_sim
   #add statistics on number of mutations from the simulation
   
-  plot_data <- data_sim %>%
-    ggplot(mapping = aes(x = NV / DP, fill = as.factor(j))) +
-    geom_histogram(alpha = .5, position = "identity") +
-    facet_wrap(vars(karyotype, tau, j))
-  
-  ggsave("./plots/original_data.png", plot = plot_data, width = 12, height = 10,   device = png)
-  # device = function(...) png(..., type = "cairo")
-
   simulation_params <- list(
     vector_tau = vector_tau,
     vector_karyo = vector_karyo,
@@ -85,6 +78,18 @@ for(i in 1:n_simulations){
     number_clocks = number_clocks,
     epsilon = epsilon
   )
+
+  data_sim_plot = data_sim %>% mutate (tau = round(tau, 2))
+  plot_data <- data_sim_plot %>% 
+    ggplot(mapping = aes(x = NV / DP, fill = as.factor(j))) +
+    geom_histogram(alpha = .5, position = "identity") +
+    labs(
+      title = "Histogram of the VAF spectrum, per segment"
+    )+
+    facet_wrap(vars(karyotype, tau, j))
+  
+  ggsave("./plots/original_data.png", plot = plot_data, width = 12 +  simulation_params$number_events, height = 10 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png)
+  #simulation_params can be substituted in relation with data_sim variables
   
   
   #in "fit model selection best K" the plots for each K inference is directly saved 

@@ -30,7 +30,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
       title = "Approximate Posterior distributions",
       subtitle = "with mean and 80% and 95% intervals"
     )+
-    xlim(0, 1)
+    xlim(0, 1) # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
 
   color_scheme_set("blue")
   intervals <- mcmc_intervals(draws, regex_pars = c("w"), point_est = "mean", prob = 0.8, prob_outer = 0.95)+
@@ -79,7 +79,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     for (i in seq_along(unique(accepted_mutations$segment_id))) {
     segment <- unique(accepted_mutations$segment_id)[i]
     num_mutations <- nrow(accepted_mutations %>% filter(segment_id == segment))
-    Subtitle[[i+1]] <- paste0(segment, "= ", num_mutations," ")
+    Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
   }
   
   Subtitle <- paste(Subtitle, collapse = "   ")
@@ -91,8 +91,8 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     geom_histogram(alpha = .5, position = "identity") +
     labs(x = "VAF")+
     labs(
-      title = "Histogram for the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)",
-      subtitle = paste0(Subtitle)
+      title = "Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)",
+      subtitle = paste0( str_wrap(Subtitle, width = 160) )
     )+
     facet_wrap(vars(karyotype, tau, segment_id))
 
@@ -156,8 +156,8 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
     
 
-    final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / (ppc | intervals_compare) / (mean_compare|max_compare|min_compare|median_compare) +
-      plot_layout(widths = c(8, 6, 6, 8, 8), heights = c(8, 15 + simulation_params$number_events + (simulation_params$number_events/2) , 15 + simulation_params$number_events + (simulation_params$number_events/2) , 8 + (simulation_params$number_events/2), 8 + (simulation_params$number_events/2))) +
+    final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / ppc / intervals_compare / (mean_compare|max_compare|min_compare|median_compare) +
+      plot_layout(widths = c(8, 6, 6, 8, 8, 8), heights = c(8, 15 + simulation_params$number_events + (simulation_params$number_events/1.3) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) + K, 8 + (simulation_params$number_events/1.3), 8 + (simulation_params$number_events/1.3),  8 + (simulation_params$number_events/2))) +
       plot_annotation(
         title = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity ),
         subtitle = " ",
