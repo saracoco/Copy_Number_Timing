@@ -157,9 +157,9 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
   # sqrt(n/2), dove n è il numero di punti dati.
   
 
-  if (length(karyo) <= 30){
+  if (length(karyo) <= 15){
     k_max = length(karyo)/2
-  } else { k_max = sqrt(length(karyo)/2)
+  } else { k_max = sqrt(length(karyo))
     
   }
   
@@ -175,19 +175,14 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
     }
 
 
-    S <- length(unique(all_sim$segment_id))
+    accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k? 
+
+    S <- length(unique(accepted_mutations$segment_id))
     stanfit <- rstan::read_stan_csv(res$output_files())
-
-
-    draws <- res$draws(format = "matrix")
-    draws_median <- lapply(1:ncol(draws), function(i) {median(draws[,i])} ) %>% unlist()  
-    res_tibble <- dplyr::tibble(param = colnames(draws), median = draws_median)
-
-
+  
     total_number_params <- K+(K*S)+2 # tau = K, w = K*S, phi, kappa (dirichlet reparametrization)
-
     k_inferred <- total_number_params
-    N <- nrow(all_sim)
+    N <- nrow(accepted_mutations)
     #L <- res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
     log_lik<- extract_log_lik(stanfit)
     L <- mean(log_lik)
@@ -213,7 +208,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
     saveRDS(input_data, paste0("results/input_data_",all_sim$j[1],"_",K,".rds"))
     
     p <- plotting(res,input_data, all_sim ,K, simulation_params)
-    ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",K,".png"), width = 12, height = 16, limitsize = FALSE, device = png, plot=p)
+    ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",K,".png"), width = 12 + (simulation_params$number_events/2), height = 16 + (simulation_params$number_events/2), limitsize = FALSE, device = png, plot=p)
     
   }
   
@@ -228,8 +223,10 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
      res <- fit_variational(input_data, max_attempts=max_attempts, INIT=FALSE)
    }
    
+
+  
    p_best_K <- plotting(res,input_data, all_sim, best_K, simulation_params)
-   ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",best_K,".png"), width = 12, height = 16, limitsize = FALSE, device = png, plot=p_best_K)
+   ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",best_K,"_best_K.png"), width = 12 + (simulation_params$number_events/2), height = 16 + (simulation_params$number_events/2), limitsize = FALSE, device = png, plot=p_best_K)
    
   return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data
 ))

@@ -6,10 +6,11 @@
 #SBATCH --time=10:00:00
 #SBATCH --partition=THIN
 #SBATCH --mem=400gb
+#SBATCH --output=SN_2.out
 
 module load R
 
-R CMD BATCH scripts/simulate_night_2.R
+R CMD BATCH scripts/simulate_S_1.R
 
 
 module purge

@@ -1,3 +1,4 @@
+#original simulate
 library(patchwork)
 library(loo)
 library(bayesplot)
@@ -25,7 +26,7 @@ number_events = 30
 number_clocks = 4
 
 INIT = FALSE
-epsilon = 0.20
+epsilon = 0.15
 n_simulations = 20
 purity = 0.99
 
@@ -163,13 +164,31 @@ for(i in 1:n_simulations){
   Subtitle <- paste(Subtitle, collapse = "\n")
   
   
+  # add info in caption of loss_score in the plot and save it in a variable to then extract the statistics of all simulations
+  all_loss_score = c()
+  accepted_mutations = readRDS("results/accepted_mutations.rds")
+  Caption <- vector("list", (simulation_params+1))
+  Caption[[1]]  <- paste0("Loss score : ")
+
+    for (k in 1:k_max) {
+    loss_score <- readRDS(paste0("results/loss_score_",k,".rds"))
+    all_loss_score <- c(all_loss_score, loss_score)
+    segment <- unique(accepted_mutations$segment_id)[i]
+    num_mutations <- nrow(accepted_mutations %>% filter(segment_id == segment))
+    Caption[[i+1]] <- paste0("loss score with ",k," clocks = ", loss_score," ")
+  }
+  
+  Caption <- paste(Caption, collapse = "   ")
+  saveRDS(all_loss_score, "results/all_loss_score.rds")
+
+
   
   
   model_selection_plot <- (bic_plot | aic_plot) / (loo_plot|log_lik_plot) +
   plot_annotation(
     title = "Model selection graphs: score vs number of clusters" ,
     subtitle = paste0 ("Correspondence between number of clusters and number of parameters:  \n", Subtitle),
-    caption = "caption"
+    caption = paste0(Caption)
   ) & theme(text = element_text(size = 8), plot.title = element_text(size = 10), plot.subtitle = element_text(size = 8), axis.text = element_text(size = 8), plot.caption = element_text(size = 5))
   
   
@@ -179,6 +198,13 @@ for(i in 1:n_simulations){
   saveRDS(model_selection, "model_selection.rds")
   
   
+
+
+
+
+
+
+
   
   setwd(original_dir)
   

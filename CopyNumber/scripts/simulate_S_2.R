@@ -18,15 +18,15 @@ source("./CNTiming/R/fitting_functions.R")
 source("./CNTiming/R/plotting_functions.R")
 
 
-self_name = "SN_3"
+self_name = "S_2"
 new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
 dir.create(new_dir)
 
 number_events = 10
-number_clocks = 4
+number_clocks = 2
 
 INIT = FALSE
-epsilon = 0.15
+epsilon = 0.20
 n_simulations = 20
 purity = 0.99
 

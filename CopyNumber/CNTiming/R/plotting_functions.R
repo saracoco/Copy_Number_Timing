@@ -1,7 +1,7 @@
 
 #' plotting Function
 #'
-#' This function obtains the peaks to be used for CN timing in the input data.
+#' This function plot the essential information to be seen in order to evaluate the performance of the tool out of a simulation where real data or simulated data to be inferred are known.
 #' @param res result
 #' @param input_data data
 #' @param K number of mixture components
@@ -71,7 +71,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
    
   
-  accepted_mutations <- readRDS("results/accepted_mutations.rds") #giveas input do not call it from inside the function for the package
+  accepted_mutations <- readRDS("results/accepted_mutations.rds") #Give as input do not call it from inside the function for the package
   
   Subtitle <- vector("list", (length(unique(accepted_mutations$segment_id))+1))
   Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
@@ -84,6 +84,14 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
   Subtitle <- paste(Subtitle, collapse = "   ")
   
+
+  mean_mut <- mean(num_mutations)
+  max_mut <- max(num_mutations)
+  min_mut <- min(num_mutations)
+
+  Subtitle_short <- paste0("Average number of mutations per segment: ", mean_mut, "  Minimum number of mutations per segment: ", min_mut, "  Maximum number of mutations per segment: ", max_mut )
+
+
   
   accepted_mutations = accepted_mutations %>% mutate (tau = round(tau, 2))
     plot_filtered_data <- accepted_mutations %>%
@@ -92,9 +100,9 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     labs(x = "VAF")+
     labs(
       title = "Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)",
-      subtitle = paste0( str_wrap(Subtitle, width = 160) )
+      subtitle = paste0( str_wrap(Subtitle_short, width = 160) )
     )+
-    facet_wrap(vars(karyotype, tau, segment_id))
+    facet_wrap(vars(karyotype, tau))
 
   
   
@@ -156,13 +164,46 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
     
 
+
+
+
+    #obtain score of simulation accuracy
+    accepted_mutations <- readRDS("results/accepted_mutations.rds") #Reload as I modify it for visualization purposes. Give as input do not call it from inside the function for the package
+    
+    names_tau <- paste("tau[", 1:K, "]", sep = "")
+    tau_inferred <- res$draws(names_tau, format = "matrix")
+    tau_inferred_median <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
+
+    all_differences = c()
+
+    for (i in 1:(unique(accepted_mutations$segment_id))) {
+    segment <- unique(accepted_mutations$segment_id)[i] #potrei mettere direttamente i 
+    tau_original <- unique(accepted_mutations %>% filter(segment_id == segment)%>% select(tau))
+    
+    names_weights <- paste("w[",i,",", 1:K, "]", sep = "")  #regex_pars = c("w")
+    weights_inferred <- res$draws(names_weights, format = "matrix")
+    weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
+
+    tau_inferred_assigned =  tau_inferred_median[which.max(weights_inferred_median)]
+
+    difference <- abs(tau_inferred_assigned - tau_original) # decidere se elevare al quadrato o lasciare abs
+    all_differences <- c(all_differences, difference)
+    }
+
+    loss_score <- mean(all_differences)
+    saveRDS(loss_score, paste0("results/loss_score_",K,".rds"))
+
+
+
+
+
     final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / ppc / intervals_compare / (mean_compare|max_compare|min_compare|median_compare) +
-      plot_layout(widths = c(8, 6, 6, 8, 8, 8), heights = c(8, 15 + simulation_params$number_events + (simulation_params$number_events/1.3) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) + K, 8 + (simulation_params$number_events/1.3), 8 + (simulation_params$number_events/1.3),  8 + (simulation_params$number_events/2))) +
+      plot_layout(widths = c(8, 6, 6, 8, 8, 8), heights = c(10 + sqrt(simulation_params$number_events) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) + K, 8 + (simulation_params$number_events/1.3), 8 + (simulation_params$number_events/1.3),  8 + (simulation_params$number_events/2))) +
       plot_annotation(
         title = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity ),
         subtitle = " ",
         caption = " "
-      ) & theme(text = element_text(size = 8), plot.title = element_text(size = 10), plot.subtitle = element_text(size = 8), axis.text = element_text(size = 8), plot.caption = element_text(size = 5))
+      ) & theme(text = element_text(size = 14), plot.title = element_text(size = 18), plot.subtitle = element_text(size = 14), axis.text = element_text(size = 14), plot.caption = element_text(size = 8))
     
     
     
@@ -174,3 +215,5 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
 
   return(final_plot)
 }
+
+
