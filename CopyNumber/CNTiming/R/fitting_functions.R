@@ -204,11 +204,13 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
 
     model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L))
     
+
+    #instead of saving here save all together as soon as you can
     saveRDS(res, paste0("results/res",K,"_",all_sim$j[1],".rds"))
     saveRDS(input_data, paste0("results/input_data_",all_sim$j[1],"_",K,".rds"))
     
     p <- plotting(res,input_data, all_sim ,K, simulation_params)
-    ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",K,".png"), width = 12 + (simulation_params$number_events/2), height = 16 + (simulation_params$number_events/2), limitsize = FALSE, device = png, plot=p)
+    ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
     
   }
   
@@ -226,9 +228,9 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
 
   
    p_best_K <- plotting(res,input_data, all_sim, best_K, simulation_params)
-   ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",best_K,"_best_K.png"), width = 12 + (simulation_params$number_events/2), height = 16 + (simulation_params$number_events/2), limitsize = FALSE, device = png, plot=p_best_K)
+   ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
    
-  return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data
+  return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations
 ))
 
 }

@@ -100,7 +100,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     labs(x = "VAF")+
     labs(
       title = "Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)",
-      subtitle = paste0( str_wrap(Subtitle_short, width = 160) )
+      subtitle = paste0( str_wrap(Subtitle_short, width = 80 ) )
     )+
     facet_wrap(vars(karyotype, tau))
 
@@ -119,7 +119,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     geom_histogram(alpha = .5, position = "identity", fill = "skyblue4") +
     labs(x = "tau")+
     labs(
-      title = "Distribution of tau in the simulated data",
+      title = paste0( str_wrap("Distribution of tau in the simulated data", width = 40) ),
       subtitle = " " 
     )+
     xlim(0,1) +
@@ -138,7 +138,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     geom_bar(stat = "identity", show.legend = FALSE) +
     labs(x = "Tau", y = "Number of Segments") +
     labs(
-      title = "Number of Unique Segments Associated with Each Tau Value",
+      title = paste0( str_wrap("Number of Unique Segments Associated with Each Tau Value", width = 40) ),
       subtitle = " "
     ) +
     theme_minimal()
@@ -167,7 +167,9 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
 
 
 
-    #obtain score of simulation accuracy
+    #obtain score of simulation accuracy 
+    #MAE evaluated on the tau values associated to each segment compare original with predicted/arrigned
+    #RI compare the original partition of segments with respect to the tau they are associated with and the partition obtained from the tau assigned through the model
     accepted_mutations <- readRDS("results/accepted_mutations.rds") #Reload as I modify it for visualization purposes. Give as input do not call it from inside the function for the package
     
     names_tau <- paste("tau[", 1:K, "]", sep = "")
@@ -175,26 +177,39 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     tau_inferred_median <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
 
     all_differences = c()
+    identity_matrix_RI = c()
+    for (i in seq_along(unique(accepted_mutations$segment_id))) {
+        segment <- unique(accepted_mutations$segment_id)[i] #potrei mettere direttamente i 
+        seg_modified <- segment %>%  str_split(" ")
+        segment_number <- seg_modified[[1]][2]
+        tau_original <- unique(accepted_mutations %>% filter(segment_id == segment)%>% select(tau)) %>% pull(tau)
+        
+        names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  #regex_pars = c("w")
+        weights_inferred <- res$draws(names_weights, format = "matrix")
+        weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
 
-    for (i in 1:(unique(accepted_mutations$segment_id))) {
-    segment <- unique(accepted_mutations$segment_id)[i] #potrei mettere direttamente i 
-    tau_original <- unique(accepted_mutations %>% filter(segment_id == segment)%>% select(tau))
-    
-    names_weights <- paste("w[",i,",", 1:K, "]", sep = "")  #regex_pars = c("w")
-    weights_inferred <- res$draws(names_weights, format = "matrix")
-    weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
+        tau_index_assigned <- which.max(weights_inferred_median)
+        tau_inferred_assigned =  tau_inferred_median[which.max(weights_inferred_median)]
 
-    tau_inferred_assigned =  tau_inferred_median[which.max(weights_inferred_median)]
-
-    difference <- abs(tau_inferred_assigned - tau_original) # decidere se elevare al quadrato o lasciare abs
-    all_differences <- c(all_differences, difference)
+        difference <- abs(tau_inferred_assigned - tau_original) # MAE - meglio MSE?
+        all_differences <- c(all_differences, difference)
+        identity_matrix_RI = c(identity_matrix_RI, tau_index_assigned) #extract the vector of taus (unordered) to which the ordered segments are assigned
     }
 
-    loss_score <- mean(all_differences)
-    saveRDS(loss_score, paste0("results/loss_score_",K,".rds"))
 
+    MAE <- mean(all_differences)
+    saveRDS(MAE, paste0("results/MAE_",K,".rds"))
 
-
+    real_assignment <- accepted_mutations %>%
+                                  group_by(segment_id) %>%
+                                  summarize(tau = first(tau)) %>%
+                                  arrange(match(segment_id, unique(accepted_mutations$segment_id))) %>%
+                                  pull(tau)
+    model_assignment <- identity_matrix_RI
+    RI <- rand.index(real_assignment,model_assignment)
+    #ARI <- adj.rand.index(real_assignment,model_assignment)  #NaN
+    saveRDS(RI, paste0("results/RI_",K,".rds"))
+    #saveRDS(ARI, paste0("results/ARI_",K,".rds"))
 
 
     final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / ppc / intervals_compare / (mean_compare|max_compare|min_compare|median_compare) +
@@ -203,7 +218,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
         title = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity ),
         subtitle = " ",
         caption = " "
-      ) & theme(text = element_text(size = 14), plot.title = element_text(size = 18), plot.subtitle = element_text(size = 14), axis.text = element_text(size = 14), plot.caption = element_text(size = 8))
+      ) & theme(text = element_text(size = 14+sqrt(simulation_params$number_events)), plot.title = element_text(size = 18+sqrt(simulation_params$number_events)), plot.subtitle = element_text(size = 14+sqrt(simulation_params$number_events)), axis.text = element_text(size = 14 + sqrt(simulation_params$number_events)), plot.caption = element_text(size = 8))
     
     
     
@@ -216,4 +231,92 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   return(final_plot)
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+plotting_model_selection <- function(results){
+
+  model_selection <- results$model_selection_tibble
+  best_K <- results$best_K
+  k_max = nrow(model_selection)
+  
+  
+  bic_plot <- ggplot(data = model_selection, aes(x = K, y = BIC)) + 
+    geom_line(aes(colour = "BIC Line")) + 
+    geom_point(aes(colour = "BIC Point")) +
+    geom_point(aes(x = best_K, y = BIC[K == best_K], colour = "Best K Point")) +
+    geom_point(aes(x = K[BIC == min(BIC)], y = min(BIC), colour = "Minimum Point")) +
+    scale_colour_manual(name = "Legend",
+                        values = c("BIC Line" = "blue", 
+                                   "BIC Point" = "blue", 
+                                   "Best K Point" = "red",
+                                   "Minimum Point" = "green"),)
+  
+  aic_plot <- ggplot(data = model_selection, aes(x = K, y = AIC)) + 
+    geom_line(aes(colour = "AIC Line")) + 
+    geom_point(aes(colour = "AIC Point")) +
+    geom_point(aes(x = best_K, y = AIC[K == best_K], colour = "Best K Point")) +
+    geom_point(aes(x = K[AIC == min(AIC)], y = min(AIC), colour = "Minimum Point")) +
+    scale_colour_manual(name = "Legend",
+                        values = c("AIC Line" = "blue", 
+                                   "AIC Point" = "blue", 
+                                   "Best K Point" = "red",
+                                   "Minimum Point" = "green"))
+  
+
+  loo_plot <- ggplot(data = model_selection, aes(x = K, y = LOO)) + 
+    geom_line(aes(colour = "LOO Line")) + 
+    geom_point(aes(colour = "LOO Point")) +
+    geom_point(aes(x = best_K, y = LOO[K == best_K], colour = "Best K Point")) +
+    geom_point(aes(x = K[LOO == min(LOO)], y = min(LOO), colour = "Minimum Point")) +
+    scale_colour_manual(name = "Legend",
+                        values = c("LOO Line" = "blue", 
+                                   "LOO Point" = "blue", 
+                                   "Best K Point" = "red",
+                                   "Minimum Point" = "green"))
+  
+  
+  log_lik_plot <- ggplot(data = model_selection, aes(x = K, y = Log_lik)) + 
+    geom_line(aes(colour = "Log likelihood Line")) + 
+    geom_point(aes(colour = "Log likelihood Point")) +
+    geom_point(aes(x = best_K, y = Log_lik[K == best_K], colour = "Best K Point")) +
+    geom_point(aes(x = K[Log_lik == max(Log_lik)], y = max(Log_lik), colour = "Minimum Point")) +
+    scale_colour_manual(name = "Legend",
+                        values = c("Log likelihood Line" = "blue", 
+                                   "Log likelihood Point" = "blue", 
+                                   "Best K Point" = "red",
+                                   "Minimum Point" = "green"))
+  
+  S <- length(unique(results$accepted_mutations$segment_id))
+  Subtitle <- rep(NA, times=k_max)
+  
+  for (k in 1:k_max) {
+    n_parameters <- k+(k*S)+2
+    Subtitle[[k]] <- paste0(" ", k, ": ", n_parameters," parameters")
+  }
+  
+  Subtitle <- paste(Subtitle, collapse = "\n")
+  
+  
+  
+  model_selection_plot <- (bic_plot | aic_plot) / (loo_plot|log_lik_plot) +
+  plot_annotation(
+    title = "Model selection graphs: score vs number of clusters" ,
+    subtitle = paste0 ("Correspondence between number of clusters and number of parameters:  \n", Subtitle),
+    caption = " "
+  ) & theme(text = element_text(size = 8), plot.title = element_text(size = 10), plot.subtitle = element_text(size = 8), axis.text = element_text(size = 8), plot.caption = element_text(size = 8))
+  
+  return(model_selection_plot)
+}
 
