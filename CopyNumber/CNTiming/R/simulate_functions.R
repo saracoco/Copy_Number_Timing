@@ -14,9 +14,9 @@
 
 get_taus_karyo = function (number_events,
                                 vector_tau, vector_karyo,
-                                weignths_tau, weights_karyo ){
+                                weigths_tau, weights_karyo ){
 
-  taus <- sample( vector_tau[1:length(vector_tau)], number_events, replace=TRUE, prob=weignths_tau )
+  taus <- sample( vector_tau[1:length(vector_tau)], number_events, replace=TRUE, prob=weigths_tau )
   karyo <- sample( vector_karyo[1:length(vector_karyo)], number_events, replace=TRUE, prob=weights_karyo )
 
   return(list(taus=taus,karyo=karyo))
@@ -27,41 +27,43 @@ get_taus_karyo = function (number_events,
 #' get_simulation Function
 #'
 #' This function allows you to obtain simulated data for copy number events.
-#' @param taus tau
-#' @param karyo karyotype
+#' @param taus = a vector of doubles between [0,1]
+#' @param karyotypes  = a vector of the same length of taus of strings of the type "2:1", "2:0", "2:2"
 #' @param purity sample purity
+#' @param time_interval time interval not in 0-1, real number
+#' @param l length of the segment considered
+#' @param mu mutation rate
+#' @param w cell division rate
+#' @param coverage average number of reads that align to a reference base
 #' @keywords simulation
 #' @export
 #' @examples
 #' get_simulation()
 
-get_simulation = function (taus, karyo, purity = 1){
-  #taus = a vector of doubles between [0,1]
-  #karyo = a vector of the same length of taus of strings of the type "2:1", "2:0", "2:2"
+get_simulation = function (taus, karyotypes, purity = 0.9, time_interval = 20, l = 1e7, mu = 1e-4, w = 1e-2, coverage = 100){
 
-  S = length(karyo)
+  S = length(karyotypes)
   names <- paste("segment", 1:S,sep = " ")
-  all_sim <- dplyr::tibble()
+  data_all_segments <- dplyr::tibble()
 
-
-  for (j in 1:length(taus)) {
+  for (j in 1:S) {
     tau <- taus[j]
-    print(tau)
-    sim <- simulate_mutations(karyo[j], 20, tau = tau, l = 1e7, mu = 1e-4, 1e-2, segment_id = j)
-    sim <- add_DP_and_NV(karyo[j], sim, coverage = 100, purity = purity)
+    karyotype <- karyotypes[j]
+    #print(tau)
+    data_single_segment <- simulate_mutations(karyotype, time_interval = time_interval, tau = tau, l = l, mu = mu, w = w, segment_id = j)
+    data_single_segment <- add_DP_and_NV(karyotype, data_single_segment, coverage = 100, purity = purity)
 
-    sim$tau = tau
-    sim$j = names[j]
-    all_sim <- dplyr::bind_rows(all_sim, sim)
+    data_single_segment$tau = tau
+    data_single_segment$segment_name = names[j]
+    data_all_segments <- dplyr::bind_rows(data_all_segments, data_single_segment)
   }
 
-  peaks <- matrix(0, nrow = length(karyo), ncol = 2)
-  for (i in 1:length(karyo)) {
-    peaks[i,] <- get_clonal_peaks(karyo[i], purity)
+  peaks_all_segments <- matrix(0, nrow = S, ncol = 2)
+  for (i in 1:S) {
+    peaks_all_segments[i,] <- get_clonal_peaks(karyotype, purity)
   }
 
-
-  return(all_sim)
+  return(data_all_segments)
 }
 
 
@@ -70,13 +72,13 @@ get_simulation = function (taus, karyo, purity = 1){
 
 #' simulate_mutations Function
 #'
-#' This function allows you to obtain the posterior for the single segment inference.
+#' This function allows you to obtain sample mutations to use for CN Timing inference.
 #' @param karyotype karyotype
 #' @param time_interval time
 #' @param tau tau generated
-#' @param l l
-#' @param mu mu
-#' @param w w
+#' @param l length of the segment considered
+#' @param mu mutation rate
+#' @param w  cell division rate
 #' @param segment_id segment id
 #' @keywords mutations
 #' @export

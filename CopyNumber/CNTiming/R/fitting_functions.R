@@ -14,7 +14,7 @@ fit_single_segments = function(all_sim, alpha = .05, purity = 1){
   m_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
 
   #prepare data for single segment inference
-  n_segments = length(table(all_sim$j))
+  n_segments = length(table(all_sim$segment_name))
   S = n_segments
 
   plots=c()
@@ -228,7 +228,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
 
   
    p_best_K <- plotting(res,input_data, all_sim, best_K, simulation_params)
-   ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
+   ggsave(paste0("./plots/plot_inference_",all_sim$segment_name[1],"_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
    
   return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations
 ))
@@ -403,7 +403,7 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     }) %>% unlist()
     
     # Get only good mutations
-    accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$j[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] )
+    accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$segment_name[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] )
     
   }
   
@@ -413,7 +413,7 @@ prepare_input_data = function(all_sim, karyo, K, purity){
   if (minimum_number_per_segment == TRUE) {
   
   input_data <- list(
-    S = length(unique(all_sim$j[accepted_idx])),
+    S = length(unique(all_sim$segment_name[accepted_idx])),
     K = K,
     N = nrow(accepted_mutations),
     karyotype = lapply(karyo, karyo_to_int) %>% unlist(),

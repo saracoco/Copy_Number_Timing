@@ -32,12 +32,30 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     )+
     xlim(0, 1) # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
 
+
+
   color_scheme_set("blue")
+  intervals_weigths_per_tau <- list()
+  for (k in 1:K){
+        names_weights <- paste("w[",1:simulation_params$number_events,",", k, "]", sep = "") 
+        intervals_weigths_per_tau[[k]] <- mcmc_intervals(draws, pars = names_weights, point_est = "mean", prob = 0.8, prob_outer = 0.95)+
+                    labs(
+                      title =  str_wrap( paste0("Posterior distributions of the weigths for tau ",k), width = 30 + K + sqrt(simulation_params$number_events)),
+                      subtitle = "with mean and 80% and 95% intervals"
+                    )
+  }
+  intervals_weigths_per_tau <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
+
+  
+  #not using it, just need to add the general title to avoid repetitions
   intervals <- mcmc_intervals(draws, regex_pars = c("w"), point_est = "mean", prob = 0.8, prob_outer = 0.95)+
     labs(
-      title = "Posterior distributions",
+      title = "Posterior distributions of the weigths for each tau inferred",
       subtitle = "with mean and 80% and 95% intervals"
     )
+  #
+
+
 
 
   #posterior predictive check
@@ -95,12 +113,12 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
   accepted_mutations = accepted_mutations %>% mutate (tau = round(tau, 2))
     plot_filtered_data <- accepted_mutations %>%
-    ggplot(mapping = aes(x = NV / DP, fill = as.factor(segment_id))) +
+    ggplot(mapping = aes(x = NV / DP, fill = segment_id)) +
     geom_histogram(alpha = .5, position = "identity") +
     labs(x = "VAF")+
     labs(
-      title = "Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)",
-      subtitle = paste0( str_wrap(Subtitle_short, width = 80 ) )
+      title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (simulation_params$number_events) ) ),
+      subtitle = paste0( str_wrap(Subtitle_short, width = 90 + K + (simulation_params$number_events) ) )
     )+
     facet_wrap(vars(karyotype, tau))
 
@@ -119,7 +137,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     geom_histogram(alpha = .5, position = "identity", fill = "skyblue4") +
     labs(x = "tau")+
     labs(
-      title = paste0( str_wrap("Distribution of tau in the simulated data", width = 40) ),
+      title = paste0( str_wrap("Distribution of tau in the simulated data", width = 40 + sqrt(simulation_params$number_events)) ),
       subtitle = " " 
     )+
     xlim(0,1) +
@@ -138,7 +156,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     geom_bar(stat = "identity", show.legend = FALSE) +
     labs(x = "Tau", y = "Number of Segments") +
     labs(
-      title = paste0( str_wrap("Number of Unique Segments Associated with Each Tau Value", width = 40) ),
+      title = paste0( str_wrap("Number of Unique Segments Associated with Each Tau Value", width = 40 + K + (simulation_params$number_events)) ),
       subtitle = " "
     ) +
     theme_minimal()
@@ -157,7 +175,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     geom_bar(stat = "identity", show.legend = FALSE) +
     labs(x = "Karyotype", y = "Number of Segments") +
     labs(
-      title = "Number of Unique Segments Associated with Each Karyotype configuration",
+      title = paste0( str_wrap("Number of Unique Segments Associated with Each Karyotype configuration", width = 40 + (simulation_params$number_events)) ),
       subtitle = " "
     ) +
     theme_minimal()
@@ -167,7 +185,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
 
 
 
-    #obtain score of simulation accuracy 
+    #obtain score of simulation accuracy    EXTERNAL METRICS (with known ground truth)
     #MAE evaluated on the tau values associated to each segment compare original with predicted/arrigned
     #RI compare the original partition of segments with respect to the tau they are associated with and the partition obtained from the tau assigned through the model
     accepted_mutations <- readRDS("results/accepted_mutations.rds") #Reload as I modify it for visualization purposes. Give as input do not call it from inside the function for the package
@@ -211,14 +229,16 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     saveRDS(RI, paste0("results/RI_",K,".rds"))
     #saveRDS(ARI, paste0("results/ARI_",K,".rds"))
 
+    MAE = round(MAE, 3)
+    RI = round(RI, 3)
 
-    final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | intervals) / ppc / intervals_compare / (mean_compare|max_compare|min_compare|median_compare) +
-      plot_layout(widths = c(8, 6, 6, 8, 8, 8), heights = c(10 + sqrt(simulation_params$number_events) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) + K, 8 + (simulation_params$number_events/1.3), 8 + (simulation_params$number_events/1.3),  8 + (simulation_params$number_events/2))) +
+    final_plot <- (tau_segments_plot|karyo_segments_plot ) / plot_filtered_data /  (areas_tau | ppc) / intervals_weigths_per_tau / intervals_compare / (mean_compare|max_compare|min_compare|median_compare) +
+      plot_layout(widths = c(8, 6, 6, 8, 8, 8), heights = c(10 + sqrt(simulation_params$number_events) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) , 15 + simulation_params$number_events + (simulation_params$number_events/1.3) + K, 15 + simulation_params$number_events + (simulation_params$number_events/1.3) + K*2, 8 + (simulation_params$number_events/1.3),  8 + (simulation_params$number_events/2))) +
       plot_annotation(
         title = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity ),
         subtitle = " ",
-        caption = " "
-      ) & theme(text = element_text(size = 14+sqrt(simulation_params$number_events)), plot.title = element_text(size = 18+sqrt(simulation_params$number_events)), plot.subtitle = element_text(size = 14+sqrt(simulation_params$number_events)), axis.text = element_text(size = 14 + sqrt(simulation_params$number_events)), plot.caption = element_text(size = 8))
+        caption = paste0("MAE (tau real vs tau predicted) = ",MAE,"   RI (of real partition Vs model partition) = ",RI)
+      ) & theme(text = element_text(size = 12+sqrt(simulation_params$number_events)), plot.title = element_text(size = 15+sqrt(simulation_params$number_events)), plot.subtitle = element_text(size = 12+sqrt(simulation_params$number_events)), axis.text = element_text(size = 12 + sqrt(simulation_params$number_events)), plot.caption = element_text(size = 10 + sqrt(simulation_params$number_events)))
     
     
     
