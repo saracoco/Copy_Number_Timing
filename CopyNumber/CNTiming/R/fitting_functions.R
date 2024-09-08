@@ -112,14 +112,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
 
 
-
-
-
-
-
-#fit with filtering --> SCRIVERE in fit variationale or in input data 
-
-
 #' fit_variational Function
 #'
 #' This function performs the inference for CN timing using the ADVI algorithm.
@@ -315,7 +307,7 @@ prepare_input_data = function(all_sim, karyo, K, purity){
 
 
 
-
+# INITIALIZATION 
 
 
 #' get_init Function
@@ -337,12 +329,10 @@ get_init = function(data, K, phi=c(), kappa=5){
 
   res.fcm <- fcm(data, centers=K)
 
-
   init_taus <- c(res.fcm$v)
   init_w <- as.matrix(res.fcm$u)
   epsilon <- 1e-5
   perturbed_probabilities <- init_w + epsilon
-
 
   # Rinormalizza i pesi lungo l'asse 1 (per riga)
   normalized_probabilities <- (apply(perturbed_probabilities, 1, function(x) x / sum(x)))
@@ -354,11 +344,9 @@ get_init = function(data, K, phi=c(), kappa=5){
     init_w = t(init_w)
   }
 
-  inits_chain1 <- list(w = t(init_w), tau = init_taus, phi=phi, kappa=kappa)
+  inits_chain <- list(w = t(init_w), tau = init_taus, phi=phi, kappa=kappa)
 
-
-
-  return(inits_chain1)
+  return(inits_chain)
 }
 
 
@@ -380,36 +368,51 @@ get_init = function(data, K, phi=c(), kappa=5){
 
 fit_single_segments = function(all_sim, alpha = .05, purity = 1){
   # FIRST OPTION: run single segment inference for initialization of tau and w
-  m_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
+  model_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
 
-  #prepare data for single segment inference
-  n_segments = length(table(all_sim$segment_name))
-  S = n_segments
-
-  plots=c()
-  tau=c()
-  inference_results_tot = c()
-
+  #prepare data for single segment inference : S = number of segments
+  S <- length(unique(all_sim$segment_id))
   data_plot <- dplyr::tibble()
   inference_results <- dplyr::tibble()
   summarized_results <- dplyr::tibble()
 
+  plots = c()
+  tau = c()
+  inference_results_tot = c()
 
   # fit the model for each segment
-  for (i in 1:S){
+  for (segment_index in 1:S){
 
-    k = unique(all_sim$karyotype[all_sim$segment_id==i])
+    print(segment_index)
+
+    k = unique(all_sim$karyotype[all_sim$segment_id==segment_index])
     peaks_single <- get_clonal_peaks(k, purity)
 
 
-    input_data<- list(
-      N = length(all_sim$segment_id[all_sim$segment_id==i]),
-      NV = all_sim$NV[all_sim$segment_id==i],
-      DP = all_sim$DP[all_sim$segment_id==i],
+
+
+    # filtering step
+
+
+
+
+
+
+
+    input_data <- list(
+      N = length(all_sim$segment_id[all_sim$segment_id==segment_index]),
+      NV = all_sim$NV[all_sim$segment_id==segment_index],
+      DP = all_sim$DP[all_sim$segment_id==segment_index],
       peaks = peaks_single
     )
 
-    fit <- m_single$sample(data=input_data, iter_warmup=2000, iter_sampling=2000, chains=8, parallel_chains=8)
+
+
+
+
+
+
+    fit <- model_single$sample(data=input_data, iter_warmup=2000, iter_sampling=2000, chains=8, parallel_chains=8)
 
 
     # Compute tau posteriors

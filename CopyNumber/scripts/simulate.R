@@ -25,12 +25,12 @@ self_name = "try"
 new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
 dir.create(new_dir)
 
-number_events = 10
+number_events = 6
 number_clocks = 2
 
 INIT = FALSE
 epsilon = 0.20
-n_simulations = 20
+n_simulations = 1
 purity = 0.99
 
 vector_karyo <- c("2:0", "2:1", "2:2")
