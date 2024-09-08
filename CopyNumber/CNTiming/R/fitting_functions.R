@@ -1,131 +1,3 @@
-#' fit_single_segments Function
-#'
-#' -NEED TO ADD FILTERING STEP - This function allows you to obtain simulated data and perform the single segments inference for CN timing, could be used to obtain initialization values for tau and w.
-#' @param all_sim data
-#' @param alpha confidece level
-#' @param purity sample purity
-#' @keywords fit
-#' @export
-#' @examples
-#' fit_single_segments()
-
-fit_single_segments = function(all_sim, alpha = .05, purity = 1){
-  # FIRST OPTION: run single segment inference for initialization of tau and w
-  m_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
-
-  #prepare data for single segment inference
-  n_segments = length(table(all_sim$segment_name))
-  S = n_segments
-
-  plots=c()
-  tau=c()
-  inference_results_tot = c()
-
-  data_plot <- dplyr::tibble()
-  inference_results <- dplyr::tibble()
-  summarized_results <- dplyr::tibble()
-
-
-  # fit the model for each segment
-  for (i in 1:S){
-
-    k = unique(all_sim$karyotype[all_sim$segment_id==i])
-    peaks_single <- get_clonal_peaks(k, purity)
-
-
-    input_data<- list(
-      N = length(all_sim$segment_id[all_sim$segment_id==i]),
-      NV = all_sim$NV[all_sim$segment_id==i],
-      DP = all_sim$DP[all_sim$segment_id==i],
-      peaks = peaks_single
-    )
-
-    fit <- m_single$sample(data=input_data, iter_warmup=2000, iter_sampling=2000, chains=8, parallel_chains=8)
-
-
-    # Compute tau posteriors
-    tau_posteriors <- get_tau_posteriors(fit, k)$tau %>% unname() %>% as.numeric()
-
-    q1 <- alpha / 2
-    q2 <- 1 - alpha / 2
-    tau_low <- quantile(tau_posteriors, q1) %>% unname()
-    tau_high <- quantile(tau_posteriors, q2) %>% unname()
-    tau_mean <- mean(tau_posteriors)
-
-    inference_results <- dplyr::bind_rows(inference_results, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
-    summarized_results <- dplyr::bind_rows(summarized_results, dplyr::tibble(tau_low = tau_low, tau_mean = tau_mean, tau_high = tau_high, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
-
-    inference_results_tot = c(inference_results_tot, inference_results)
-    data_plot <- dplyr::bind_rows(data_plot, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
-
-  }
-
-
-  inference_single_segment <- data_plot %>%
-    ggplot(mapping = aes(x=tau, fill=as.factor(segment))) +
-    geom_histogram(alpha=.5, position = "identity", bins = 100)
-  #plot_data <- plot_data + facet_wrap(vars(karyotype, segment))
-
-  #posterior distribution of tau obtained from the single segment inference
-  inference_single_segment
-  ggsave("./plots/inference_single_segments.png", width = 12, height = 12,  device = png)
-
-  tau_single_inference <- summarized_results$tau_mean
-  return(tau_single_inference)
-}
-
-
-
-
-
-
-#' get_init Function
-#'
-#' Perform cmeans on the "single inference" result and retrieve the centroids and u matrix to be used as initialization parameteres
-#' @param K number of clusters
-#' @param data dataframe of points to be clustered
-#' @param phi parameters of reparametrization initialized uninformatively
-#' @param kappa parameters of reparametrization
-#' @keywords cluster
-#' @export
-#' @examples
-#' get_init()
-
-get_init = function(data, K, phi=c(), kappa=5){
-
-  myReps <- function(x, y, n) rep(x, (x %in% y) * (n-1) +1)
-  phi = myReps(1/K, 1/K, K)
-
-  res.fcm <- fcm(data, centers=K)
-
-
-  init_taus <- c(res.fcm$v)
-  init_w <- as.matrix(res.fcm$u)
-  epsilon <- 1e-5
-  perturbed_probabilities <- init_w + epsilon
-
-
-  # Rinormalizza i pesi lungo l'asse 1 (per riga)
-  normalized_probabilities <- (apply(perturbed_probabilities, 1, function(x) x / sum(x)))
-  # Verifica che i pesi siano stati rinormalizzati correttamente
-  #print(rowSums(normalized_probabilities))
-  # Stampa i pesi normalizzati
-  init_w <- (normalized_probabilities)
-  if (K==1){
-    init_w = t(init_w)
-  }
-
-  inits_chain1 <- list(w = t(init_w), tau = init_taus, phi=phi, kappa=kappa)
-
-
-
-  return(inits_chain1)
-}
-
-
-
-
-
 
 
 #' fit_model_selection_best_K Function
@@ -141,7 +13,7 @@ get_init = function(data, K, phi=c(), kappa=5){
 #' @examples
 #' fit_model_selection()
 
-fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=10, INIT=TRUE, simulation_params = simulation_params){
+fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=10, INIT=TRUE, simulation_params = simulation_params){
 
   
   if (INIT==TRUE){
@@ -206,11 +78,11 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
     
 
     #instead of saving here save all together as soon as you can
-    saveRDS(res, paste0("results/res",K,"_",all_sim$j[1],".rds"))
-    saveRDS(input_data, paste0("results/input_data_",all_sim$j[1],"_",K,".rds"))
+    saveRDS(res, paste0("results/res",K,".rds"))
+    saveRDS(input_data, paste0("results/input_data_",K,".rds"))
     
     p <- plotting(res,input_data, all_sim ,K, simulation_params)
-    ggsave(paste0("./plots/plot_inference_",all_sim$j[1],"_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
+    ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
     
   }
   
@@ -228,7 +100,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.95, max_attempts=
 
   
    p_best_K <- plotting(res,input_data, all_sim, best_K, simulation_params)
-   ggsave(paste0("./plots/plot_inference_",all_sim$segment_name[1],"_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
+   ggsave(paste0("./plots/plot_inference_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
    
   return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations
 ))
@@ -337,38 +209,11 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
 
 
 
-
-
-
-
-#' peaks_inference Function
-#'
-#' This function obtains the peaks to be used for CN timing model from a list of karyotypes (used in prepare_input_data) (can be sub with lapply)
-#' @param karyo karyotype
-#' @param purity peaks
-#' @keywords peaks
-#' @export
-#' @examples
-#' peaks_inference()
-
-peaks_inference = function(karyo, purity){
-  peaks <- matrix(0, nrow = length(karyo), ncol = 2)
-  for (i in 1:length(karyo)) {
-    peaks[i,] <- get_clonal_peaks(karyo[i], purity)
-  }
-  return(peaks)
-}
-
-
-
-
-
-
 #' prepare_input_data Function
 #'
 #' This function obtains the list of input data to be used for CN timing.
 #' @param all_sim  simulated data
-#' @param karyo karyotype
+#' @param karyo karyotype posso togliere lo ricavo da all_sim XXXXXXX
 #' @param K number of components
 #' @param purity sample purity
 #' @keywords input
@@ -378,7 +223,36 @@ peaks_inference = function(karyo, purity){
 
 prepare_input_data = function(all_sim, karyo, K, purity){
   
-  peaks = peaks_inference(karyo,purity)
+  all_sim <- all_sim[order(all_sim$segment_id), ]
+
+  karyotype <- all_sim %>%
+  group_by(segment_id) %>%
+  summarise(karyotype = first(karyotype)) %>%
+  pull(karyotype)
+
+  seg <- all_sim %>%
+  group_by(segment_id) %>%
+  summarise(karyotype = first(karyotype)) %>%
+  pull(segment_id)
+
+  peaks <- matrix(0, nrow = length(karyotype), ncol = 2)
+  for (i in 1:length(karyotype)) {
+    peaks[i,] <- get_clonal_peaks(karyotype[i], purity)
+  }
+
+  
+
+  cat("these are the peaks used to filter out mutations \n")
+  print(peaks)
+  cat("These are the Karyotypes extracted from the all_sim data, used in peaks\n")
+  print(karyotype)
+  print(seg)
+
+  cat("These are the Karyotypes directly from the simulation, used for peaks in the model\n ")
+  print(karyo)
+
+
+  #peaks = peaks_inference(karyotype,purity)
   alpha = 0.05
   min_mutations_number = 2
   accepted_mutations <- data.frame()
@@ -392,12 +266,13 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     
     
     accepted_idx <- lapply(1:length(DP), function(i) {
-      for (p in peaks) {
-       
-          quantiles <- qbinom(probs, DP[i], p)
-        
-        if ((NV[i] >= quantiles[1]) && (NV[i] <= quantiles[2])) {
+      for (j in unique(all_sim$segment_id)) {
+          if (all_sim$segment_id[i]==j){
+          quantiles_1 <- qbinom(probs, DP[i], peaks[j,1])
+          quantiles_2 <- qbinom(probs, DP[i], peaks[j,2])
+        if (((NV[i] >= quantiles_1[1]) && (NV[i] <= quantiles_1[2])) | ((NV[i] >= quantiles_2[1]) && (NV[i] <= quantiles_2[2]))) {
           return(i)
+        }
         }
       }
     }) %>% unlist()
@@ -423,11 +298,181 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     DP = DP[accepted_idx]
   )
   
+
+  cat("These are the peaks which are passed in the inference task, more reliable let's say\n")
+  print(input_data$peaks)
+  print(karyotype)
+
+
   saveRDS(accepted_mutations, paste0("results/accepted_mutations.rds"))
 
   return(input_data)
 } 
 }
+
+
+
+
+
+
+
+
+
+#' get_init Function
+#'
+#' Perform cmeans on the "single inference" result and retrieve the centroids and u matrix to be used as initialization parameteres
+#' @param K number of clusters
+#' @param data dataframe of points to be clustered
+#' @param phi parameters of reparametrization initialized uninformatively
+#' @param kappa parameters of reparametrization
+#' @keywords cluster
+#' @export
+#' @examples
+#' get_init()
+
+get_init = function(data, K, phi=c(), kappa=5){
+
+  myReps <- function(x, y, n) rep(x, (x %in% y) * (n-1) +1)
+  phi = myReps(1/K, 1/K, K)
+
+  res.fcm <- fcm(data, centers=K)
+
+
+  init_taus <- c(res.fcm$v)
+  init_w <- as.matrix(res.fcm$u)
+  epsilon <- 1e-5
+  perturbed_probabilities <- init_w + epsilon
+
+
+  # Rinormalizza i pesi lungo l'asse 1 (per riga)
+  normalized_probabilities <- (apply(perturbed_probabilities, 1, function(x) x / sum(x)))
+  # Verifica che i pesi siano stati rinormalizzati correttamente
+  #print(rowSums(normalized_probabilities))
+  # Stampa i pesi normalizzati
+  init_w <- (normalized_probabilities)
+  if (K==1){
+    init_w = t(init_w)
+  }
+
+  inits_chain1 <- list(w = t(init_w), tau = init_taus, phi=phi, kappa=kappa)
+
+
+
+  return(inits_chain1)
+}
+
+
+
+
+
+
+
+#' fit_single_segments Function
+#'
+#' -NEED TO ADD FILTERING STEP - This function allows you to obtain simulated data and perform the single segments inference for CN timing, could be used to obtain initialization values for tau and w.
+#' @param all_sim data
+#' @param alpha confidece level
+#' @param purity sample purity
+#' @keywords fit
+#' @export
+#' @examples
+#' fit_single_segments()
+
+fit_single_segments = function(all_sim, alpha = .05, purity = 1){
+  # FIRST OPTION: run single segment inference for initialization of tau and w
+  m_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
+
+  #prepare data for single segment inference
+  n_segments = length(table(all_sim$segment_name))
+  S = n_segments
+
+  plots=c()
+  tau=c()
+  inference_results_tot = c()
+
+  data_plot <- dplyr::tibble()
+  inference_results <- dplyr::tibble()
+  summarized_results <- dplyr::tibble()
+
+
+  # fit the model for each segment
+  for (i in 1:S){
+
+    k = unique(all_sim$karyotype[all_sim$segment_id==i])
+    peaks_single <- get_clonal_peaks(k, purity)
+
+
+    input_data<- list(
+      N = length(all_sim$segment_id[all_sim$segment_id==i]),
+      NV = all_sim$NV[all_sim$segment_id==i],
+      DP = all_sim$DP[all_sim$segment_id==i],
+      peaks = peaks_single
+    )
+
+    fit <- m_single$sample(data=input_data, iter_warmup=2000, iter_sampling=2000, chains=8, parallel_chains=8)
+
+
+    # Compute tau posteriors
+    tau_posteriors <- get_tau_posteriors(fit, k)$tau %>% unname() %>% as.numeric()
+
+    q1 <- alpha / 2
+    q2 <- 1 - alpha / 2
+    tau_low <- quantile(tau_posteriors, q1) %>% unname()
+    tau_high <- quantile(tau_posteriors, q2) %>% unname()
+    tau_mean <- mean(tau_posteriors)
+
+    inference_results <- dplyr::bind_rows(inference_results, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
+    summarized_results <- dplyr::bind_rows(summarized_results, dplyr::tibble(tau_low = tau_low, tau_mean = tau_mean, tau_high = tau_high, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
+
+    inference_results_tot = c(inference_results_tot, inference_results)
+    data_plot <- dplyr::bind_rows(data_plot, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
+
+  }
+
+
+  inference_single_segment <- data_plot %>%
+    ggplot(mapping = aes(x=tau, fill=as.factor(segment))) +
+    geom_histogram(alpha=.5, position = "identity", bins = 100)
+  #plot_data <- plot_data + facet_wrap(vars(karyotype, segment))
+
+  #posterior distribution of tau obtained from the single segment inference
+  inference_single_segment
+  ggsave("./plots/inference_single_segments.png", width = 12, height = 12,  device = png)
+
+  tau_single_inference <- summarized_results$tau_mean
+  return(tau_single_inference)
+}
+
+
+
+
+
+
+
+
+
+
+#' peaks_inference Function
+#'
+#' This function obtains the peaks to be used for CN timing model from a list of karyotypes (used in prepare_input_data) (can be sub with lapply)
+#' @param karyo karyotype
+#' @param purity peaks
+#' @keywords peaks
+#' @export
+#' @examples
+#' peaks_inference()
+
+peaks_inference = function(karyo, purity){
+  peaks <- matrix(0, nrow = length(karyo), ncol = 2)
+  for (i in 1:length(karyo)) {
+    peaks[i,] <- get_clonal_peaks(karyo[i], purity)
+  }
+  return(peaks)
+}
+
+
+
+
 
 
 

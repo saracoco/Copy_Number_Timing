@@ -9,9 +9,8 @@
 #SBATCH --output=simulate.out
 
 
-module load R
+module load R/4.3.3
 
 R CMD BATCH scripts/simulate.R
-
 
 module purge

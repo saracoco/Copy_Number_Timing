@@ -45,6 +45,7 @@ get_simulation = function (taus, karyotypes, purity = 0.9, time_interval = 20, l
   S = length(karyotypes)
   names <- paste("segment", 1:S,sep = " ")
   data_all_segments <- dplyr::tibble()
+  
 
   for (j in 1:S) {
     tau <- taus[j]

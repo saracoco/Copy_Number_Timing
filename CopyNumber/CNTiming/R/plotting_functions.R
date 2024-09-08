@@ -88,46 +88,166 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
 
   
    
+
+
+
+
+
+
+
   
   accepted_mutations <- readRDS("results/accepted_mutations.rds") #Give as input do not call it from inside the function for the package
   
   Subtitle <- vector("list", (length(unique(accepted_mutations$segment_id))+1))
   Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
-
+  num_mutations_all <- c()
     for (i in seq_along(unique(accepted_mutations$segment_id))) {
     segment <- unique(accepted_mutations$segment_id)[i]
-    num_mutations <- nrow(accepted_mutations %>% filter(segment_id == segment))
-    Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
+    num_mutations_single <- nrow(accepted_mutations %>% filter(segment_id == segment))
+    num_mutations_all <- c(num_mutations_all, num_mutations_single)
+    Subtitle[[i+1]] <- paste0(segment, "=", num_mutations_single," ")
   }
   
   Subtitle <- paste(Subtitle, collapse = "   ")
-  
+  cat(Subtitle)
 
-  mean_mut <- mean(num_mutations)
-  max_mut <- max(num_mutations)
-  min_mut <- min(num_mutations)
+  mean_mut <- mean(num_mutations_all)
+  max_mut <- max(num_mutations_all)
+  min_mut <- min(num_mutations_all)
 
   Subtitle_short <- paste0("Average number of mutations per segment: ", mean_mut, "  Minimum number of mutations per segment: ", min_mut, "  Maximum number of mutations per segment: ", max_mut )
 
 
   
   accepted_mutations = accepted_mutations %>% mutate (tau = round(tau, 2))
-    plot_filtered_data <- accepted_mutations %>%
-    ggplot(mapping = aes(x = NV / DP, fill = segment_id)) +
+  plot_filtered_data <- accepted_mutations %>%
+  ggplot(mapping = aes(x = NV / DP, fill = segment_id)) +
+  geom_histogram(alpha = .5, position = "identity") +
+  labs(x = "VAF")+
+  labs(
+    title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (simulation_params$number_events) ) ),
+    subtitle = paste0( str_wrap(Subtitle_short, width = 90 + K + (simulation_params$number_events) ) )
+  )+
+  facet_wrap(vars(karyotype, tau))
+
+
+
+
+
+  vline_positions <- data.frame(
+  segment_id = paste0("segment ",1:input_data$S),
+  peaks_1 = input_data$peaks[,1],
+  peaks_2 = input_data$peaks[,2]
+  )
+  accepted_mutations <- merge(accepted_mutations, vline_positions, by = "segment_id")
+
+
+  #plot filter data to save separately and compare vaf distribution before and after the filtering step, I can remove maybe later
+  plot_filtered_data_complete <- accepted_mutations %>%
+  ggplot(mapping = aes(x = NV / DP, fill = segment_id)) +
+  geom_histogram(alpha = .5, position = "identity") +
+  facet_wrap(vars(karyotype, tau, segment_id), scales = "free_x", strip.position = "bottom") +
+  geom_vline(aes(xintercept = peaks_1), color = "grey") +
+  geom_vline(aes(xintercept = peaks_2), color = "grey") +
+  theme_minimal() +
+  theme(
+  panel.background = element_rect(fill = "white", color = NA),  # White panel background
+  plot.background = element_rect(fill = "white", color = NA),   # White plot background
+  strip.background = element_rect(fill = "white", color = NA),  # White strip background
+  strip.placement = "outside",   # Place facet labels outside
+  axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
+  axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
+  panel.spacing = unit(1, "lines"),  # Adjust space between facets
+  strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
+  axis.line = element_line(color = "black"),  # Black axis lines
+  axis.title.x = element_text(color = "black"),  # Black x-axis title
+  axis.title.y = element_text(color = "black")   # Black y-axis title
+  )+
+  labs(x = "VAF")+
+  labs(
+    title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (simulation_params$number_events) ) ),
+    subtitle = paste0( Subtitle_short )
+  )
+
+  ggsave("./plots/plot_filtered_data_complete.png", plot = plot_filtered_data_complete, width = 8 + simulation_params$number_events, height = 6 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
+
+
+
+
+
+
+
+
+
+
+
+  Subtitle <- vector("list", (length(unique(simulation_data_all_segments$segment_id))+1))
+  Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
+  num_mutations_all_segments <- c()
+
+    for (i in seq_along(unique(simulation_data_all_segments$segment_id))) {
+    segment <- unique(simulation_data_all_segments$segment_id)[i]
+    num_mutations <- nrow(simulation_data_all_segments %>% filter(segment_id == segment))
+    num_mutations_all_segments <- c(num_mutations_all_segments, num_mutations)
+    Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
+  }
+  
+  Subtitle <- paste(Subtitle, collapse = "   ")
+  cat(Subtitle)
+
+  mean_mut <- mean(num_mutations_all_segments)
+  max_mut <- max(num_mutations_all_segments)
+  min_mut <- min(num_mutations_all_segments)
+
+  Subtitle_short <- paste0("Average number of mutations per segment: ", mean_mut, "  Minimum number of mutations per segment: ", min_mut, "  Maximum number of mutations per segment: ", max_mut )
+
+
+  vline_positions <- data.frame(
+  segment_name = paste0("segment ",1:input_data$S),
+  peaks_1 = input_data$peaks[,1],
+  peaks_2 = input_data$peaks[,2]
+  )
+  all_sim <- merge(all_sim, vline_positions, by = "segment_name")
+
+  simulation_data_plot = all_sim %>% mutate (tau = round(tau, 2))
+  plot_data <- simulation_data_plot %>% 
+    ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
     geom_histogram(alpha = .5, position = "identity") +
-    labs(x = "VAF")+
     labs(
-      title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (simulation_params$number_events) ) ),
-      subtitle = paste0( str_wrap(Subtitle_short, width = 90 + K + (simulation_params$number_events) ) )
+      title = "Distribution on the VAF for each segment in the simulated data",
+      subtitle = paste0(Subtitle_short)
     )+
-    facet_wrap(vars(karyotype, tau))
+    facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
+    geom_vline(aes(xintercept = peaks_1), color = "grey") +
+    geom_vline(aes(xintercept = peaks_2), color = "grey") +
+    theme_minimal() +
+    theme(
+    panel.background = element_rect(fill = "white", color = NA),  # White panel background
+    plot.background = element_rect(fill = "white", color = NA),   # White plot background
+    strip.background = element_rect(fill = "white", color = NA),  # White strip background
+    strip.placement = "outside",   # Place facet labels outside
+    axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
+    axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
+    panel.spacing = unit(1, "lines"),  # Adjust space between facets
+    strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
+    axis.line = element_line(color = "black"),  # Black axis lines
+    axis.title.x = element_text(color = "black"),  # Black x-axis title
+    axis.title.y = element_text(color = "black")   # Black y-axis title
+  )
+  
+  #save plot of the simulated data in which we can see each single segment VAF distribution
+  ggsave("./plots/simulation_data.png", plot = plot_data, width = 12 + simulation_params$number_events, height = 10 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
+  #simulation_params can be substituted in relation with simulation_data variables
+ 
+
 
   
   
-  
-  
-  
-  
+
+
+
+
+
   hist_data <- all_sim %>%
     count(tau = round(tau, 2)) %>%
     filter(n > 0)
