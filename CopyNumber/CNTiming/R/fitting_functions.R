@@ -244,7 +244,6 @@ prepare_input_data = function(all_sim, karyo, K, purity){
   print(karyo)
 
 
-  #peaks = peaks_inference(karyotype,purity)
   alpha = 0.05
   min_mutations_number = 2
   accepted_mutations <- data.frame()
@@ -285,7 +284,7 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     N = nrow(accepted_mutations),
     karyotype = lapply(karyo, karyo_to_int) %>% unlist(),
     seg_assignment = all_sim$segment_id[accepted_idx],
-    peaks = peaks_inference(karyo,purity),
+    peaks = peaks, #peaks_inference(karyo,purity),
     NV = NV[accepted_idx],
     DP = DP[accepted_idx]
   )
@@ -385,24 +384,37 @@ fit_single_segments = function(all_sim, alpha = .05, purity = 1){
 
     print(segment_index)
 
+    # filtering step
+
+    all_sim_single = all_sim %>% filter(segment_id==segment_index)
     k = unique(all_sim$karyotype[all_sim$segment_id==segment_index])
     peaks_single <- get_clonal_peaks(k, purity)
 
+    probs <- c(alpha/2, 1 - alpha/2)
 
+    DP <- all_sim_single$DP
+    NV <- all_sim_single$NV
 
+    accepted_idx <- lapply(1:length(all_sim_single$DP), function(i) {
+      for (p in peaks_single) {
+        
+        quantiles <- qbinom(probs, all_sim_single$DP[i], p)
 
-    # filtering step
+        if ((all_sim_single$NV[i] >= quantiles[1]) && (all_sim_single$NV[i] <= quantiles[2])) {
+          return(i)
+        }
+      }
+    }) %>% unlist()
 
-
-
-
+    # Get only good mutations
+    accepted_mutations <- data.frame(DP = all_sim_single$DP[accepted_idx], NV = all_sim_single$NV[accepted_idx])
 
 
 
     input_data <- list(
-      N = length(all_sim$segment_id[all_sim$segment_id==segment_index]),
-      NV = all_sim$NV[all_sim$segment_id==segment_index],
-      DP = all_sim$DP[all_sim$segment_id==segment_index],
+      N = length(all_sim_single$NV[accepted_idx]),
+      NV = all_sim_single$NV[accepted_idx], #all_sim$NV[all_sim$segment_id==segment_index],
+      DP = all_sim_single$DP[accepted_idx], #all_sim$DP[all_sim$segment_id==segment_index],
       peaks = peaks_single
     )
 
@@ -412,7 +424,7 @@ fit_single_segments = function(all_sim, alpha = .05, purity = 1){
 
 
 
-    fit <- model_single$sample(data=input_data, iter_warmup=2000, iter_sampling=2000, chains=8, parallel_chains=8)
+    fit <- model_single$sample(data=input_data, iter_warmup=2000, iter_sampling=2000, chains=4, parallel_chains=4)
 
 
     # Compute tau posteriors
@@ -424,23 +436,25 @@ fit_single_segments = function(all_sim, alpha = .05, purity = 1){
     tau_high <- quantile(tau_posteriors, q2) %>% unname()
     tau_mean <- mean(tau_posteriors)
 
-    inference_results <- dplyr::bind_rows(inference_results, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
-    summarized_results <- dplyr::bind_rows(summarized_results, dplyr::tibble(tau_low = tau_low, tau_mean = tau_mean, tau_high = tau_high, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
+    inference_results <- dplyr::bind_rows(inference_results, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==segment_index]), karyotype = k))
+    summarized_results <- dplyr::bind_rows(summarized_results, dplyr::tibble(tau_low = tau_low, tau_mean = tau_mean, tau_high = tau_high, segment = unique(all_sim$segment_id[all_sim$segment_id==segment_index]), karyotype = k))
 
     inference_results_tot = c(inference_results_tot, inference_results)
-    data_plot <- dplyr::bind_rows(data_plot, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==i]), karyotype = k))
+    data_plot <- dplyr::bind_rows(data_plot, dplyr::tibble(tau = tau_posteriors, segment = unique(all_sim$segment_id[all_sim$segment_id==segment_index]), karyotype = k))
 
   }
 
 
   inference_single_segment <- data_plot %>%
     ggplot(mapping = aes(x=tau, fill=as.factor(segment))) +
-    geom_histogram(alpha=.5, position = "identity", bins = 100)
+    geom_histogram(alpha=.5, position = "identity", bins = 100) +
+    labs(title = "Posterior distribution of tau obtained from single segment inference")
+
   #plot_data <- plot_data + facet_wrap(vars(karyotype, segment))
 
   #posterior distribution of tau obtained from the single segment inference
   inference_single_segment
-  ggsave("./plots/inference_single_segments.png", width = 12, height = 12,  device = png)
+  ggsave("./plots/inference_single_segments.png", width = 8, height = 8,  device = png)
 
   tau_single_inference <- summarized_results$tau_mean
   return(tau_single_inference)

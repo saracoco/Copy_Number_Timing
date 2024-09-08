@@ -101,7 +101,7 @@ for(i in 1:n_simulations){
   max_mut <- max(num_mutations_all_segments)
   min_mut <- min(num_mutations_all_segments)
 
-  Subtitle_short <- paste0("Average number of mutations per segment: ", mean_mut, "  Minimum number of mutations per segment: ", min_mut, "  Maximum number of mutations per segment: ", max_mut )
+  Subtitle_short <- paste0("Mutations per segment: average =", mean_mut, ",  min = ", min_mut, ", max = ", max_mut )
 
 
   #add statistics on number of mutations from the simulation

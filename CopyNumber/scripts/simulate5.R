@@ -28,7 +28,7 @@ dir.create(new_dir)
 number_events = 6
 number_clocks = 3
 
-INIT = FALSE
+INIT = TRUE
 epsilon = 0.20
 n_simulations = 20
 purity = 0.99

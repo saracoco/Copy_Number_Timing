@@ -115,7 +115,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   max_mut <- max(num_mutations_all)
   min_mut <- min(num_mutations_all)
 
-  Subtitle_short <- paste0("Average number of mutations per segment: ", mean_mut, "  Minimum number of mutations per segment: ", min_mut, "  Maximum number of mutations per segment: ", max_mut )
+  Subtitle_short <- paste0("Mutations per segment: average =", mean_mut, ",  min = ", min_mut, ", max = ", max_mut )
 
 
   
