@@ -30,9 +30,8 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
   
 
   if (length(karyo) <= 15){
-    k_max = length(karyo)/2
-  } else { k_max = sqrt(length(karyo))
-    
+    k_max = (length(karyo)/2)-1
+  } else { k_max = sqrt(length(karyo))  #does not converge with initialization (don't know why (ex #seg = 10 --> k_max = 5, with 5 does not converge))
   }
   
   for (K in 1:k_max) {
