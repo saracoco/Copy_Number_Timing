@@ -1,3 +1,6 @@
+library(rstan)
+library(tidyr)
+library(ggthemes)
 
 
 #' fit_model_selection_best_K Function
@@ -39,14 +42,15 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
     if (INIT==TRUE){
       inits_chain <- get_init(tau_single_inference, K)
+      print(paste0("These are the values used for initializing the model ", inits_chain))
+
       res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE)
+
     } else {
       res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE)
-
     }
 
-
-    accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k? 
+    accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k?
 
     S <- length(unique(accepted_mutations$segment_id))
     stanfit <- rstan::read_stan_csv(res$output_files())
@@ -54,18 +58,52 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
     total_number_params <- K+(K*S)+2 # tau = K, w = K*S, phi, kappa (dirichlet reparametrization)
     k_inferred <- total_number_params
     N <- nrow(accepted_mutations)
-    #L <- res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
-    log_lik<- extract_log_lik(stanfit)
-    L <- mean(log_lik)
+    
+    # lp_approx <- res$lp_approx() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
+    # cat (paste0(" lp_approx = median of likelihood value "))
+    # cat(mean(lp_approx),length(lp_approx))
+
+    # lp <- res$lp() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
+    # cat (paste0(" lp_approx = median of likelihood value from"))
+    # cat(mean(lp),length(lp))
+
+
+    log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE)
+    
+    
+
+    cat (paste0(" loglik = likelihood value from generated quantities"))
+    cat(mean(log_lik_matrix),dim(log_lik_matrix))
+
+
+
+
+    log_lik_total_per_sample <- rowSums(log_lik_matrix)
+    cat (paste0( "log_lik_total_per_sample = mean of likelihood value from generated quantities"))
+    cat(length(log_lik_total_per_sample))
+
+
+    L <- mean(log_lik_total_per_sample)
+    cat (paste0( "L = mean of likelihood value from generated quantities"))
+    cat(L)
+
+
+    
+
     BIC <- ((k_inferred * log(N)) - 2 * L) # %>% unname()
     AIC <- 2 * k_inferred - 2 * L
 
+
+    #WAIC
     #waic_result <- waic(log_lik_matrix)
     #waic_value <- waic_result$estimates[1, "Estimate"]  # WAIC estimate
 
+
     #LOO
-    loo_result<-loo(log_lik)
+    loo_result<-loo(log_lik_matrix)
     loo_value <- loo_result$estimates[3, "Estimate"]  # LOO-CV estimate
+
+
 
     #PSIS
     # log_ratios <- -1*(extract_log_lik(stanfit))
@@ -76,6 +114,119 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
     model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L))
     
 
+
+
+
+    # # prior predictive check without using fit_variational
+    #   model_stan <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
+
+    #   fit_prior <- model_stan$sample(
+    #       data = input_data,         # Data for prior predictive checks now the data of the simulation, is it wrong?
+    #       iter_sampling = 1000,     # Number of prior samples
+    #       chains = 4,               # Number of chains
+    #       fixed_param = TRUE        # Sample from priors only
+    #     )
+
+  
+        # # AGGIUNGI PHI, K, THETA
+        # # PRIOR PLOT 
+        # draws_df <- res$draws(format = "df")  # Extract draws as a data frame
+        # print(draws_df)
+        #       # Extract all columns related to tau and w
+        # tau_columns <- grep("^tau_prior\\[", colnames(draws_df), value = TRUE)
+        # w_columns <- grep("^w_prior\\[", colnames(draws_df), value = TRUE)
+
+        # # Extract the draws for tau and w
+        # tau_draws <- draws_df[, tau_columns]
+        # w_draws <- draws_df[, w_columns]
+
+
+        # tau_long <- pivot_longer(as.data.frame(tau_draws), cols = everything(), names_to = "tau_param", values_to = "tau_value")
+
+
+        draws_matrix <- res$draws(format = "matrix")
+        color_scheme_set("teal")
+
+          #manage to get the K from the model fit directly rather than as input
+          names_tau <- paste("tau_prior[", 1:K, "]", sep = "")
+
+          areas_tau <- mcmc_areas(
+            draws_matrix,
+            pars = names_tau,
+            prob = 0.8, # 80% intervals
+            #prob_outer = 0.95, # 99%
+            point_est = "mean"
+          )+
+            labs(
+              title = " Prior distributions",
+              subtitle = "with mean and 80% and 95% intervals"
+            )+
+            xlim(0, 1) + # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
+            theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
+
+            
+         ggsave(paste0("./plots/priors_tau_",K,".png"),  width = (8 + (simulation_params$number_events/2)), height = ( 8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_tau)
+
+
+            # names_w <- paste("w_prior[", 1:K, "]", sep = "")
+            intervals_weigths_per_tau <- list()
+              for (k in 1:K){
+                    names_weights <- paste("w_prior[",1:simulation_params$number_events,",", k, "]", sep = "") 
+                    intervals_weigths_per_tau[[k]] <- mcmc_areas_ridges(draws_matrix, pars = names_weights, point_est = "mean", prob = 0.8)+
+                                labs(
+                                  title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(simulation_params$number_events)),
+                                  subtitle = "with mean and 80% and 95% intervals"
+                                ) +
+                                theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
+
+              }
+              areas_w <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
+
+  
+         ggsave(paste0("./plots/priors_w_",K,".png"),  width = (15 + (simulation_params$number_events/2)), height = (8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_w)
+
+
+        # # Plot tau
+        # prior_tau <- ggplot(tau_long, aes(x = tau_value, fill = tau_param)) +
+        #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
+        #   labs(title = "Prior Distributions for tau", x = "tau", y = "Frequency") +
+        #   theme_minimal()
+
+
+
+        # # Reshape w to long format
+        # w_long <- pivot_longer(as.data.frame(w_draws), cols = everything(), names_to = "w_param", values_to = "w_value")
+
+        # # Separate w_param into 'segment' and 'clock'
+        # w_long <- separate(w_long, w_param, into = c("param", "segment", "clock"), sep = "\\[|,|\\]", convert = TRUE)
+
+        # # Plot w[s,k] by segment and clock
+        # prior_w <- ggplot(w_long, aes(x = w_value, fill = interaction(segment, clock))) +
+        #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
+        #   labs(title = "Prior Distributions for w[s,k]", x = "w[s,k]", y = "Frequency") +
+        #   theme_minimal() +
+        #   facet_wrap(~ interaction(segment, clock), scales = "free")
+
+
+
+  
+
+    # prior_plot <- (prior_tau|prior_w )  +
+    #   plot_layout(widths = c(8), heights = c(10)) +
+    #   plot_annotation(
+    #     title = paste0("Prior Predictive Check"),
+    #     subtitle = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity)
+    #   ) & theme(text = element_text(size = 12), plot.title = element_text(size = 15), plot.subtitle = element_text(size = 12), axis.text = element_text(size = 12 ), plot.caption = element_text(size = 10 ))
+    
+    # ggsave(paste0("./plots/priors_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=prior_plot)
+
+
+
+
+
+
+
+
     #instead of saving here save all together as soon as you can
     saveRDS(res, paste0("results/res",K,".rds"))
     saveRDS(input_data, paste0("results/input_data_",K,".rds"))
@@ -83,14 +234,19 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
     p <- plotting(res,input_data, all_sim ,K, simulation_params)
     ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
     
+
+    plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
+    ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
+
   }
   
-   best_K <- model_selection_tibble %>% dplyr::filter(LOO == min(LOO)) %>% pull(K)
+   best_K <- model_selection_tibble %>% dplyr::filter(BIC == min(BIC)) %>% pull(K)
    input_data <- prepare_input_data(all_sim, karyo, best_K, purity)
    
     
    if (INIT==TRUE){
      inits_chain <- get_init(tau_single_inference, best_K)
+     print(paste0("These are the values used for initializing the model ",inits_chain))
      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT=TRUE)
    } else {
      res <- fit_variational(input_data, max_attempts=max_attempts, INIT=FALSE)
@@ -105,7 +261,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 ))
 
 }
-
 
 
 
@@ -342,7 +497,15 @@ get_init = function(data, K, phi=c(), kappa=5){
     init_w = t(init_w)
   }
 
+
+
   inits_chain <- list(w = t(init_w), tau = init_taus, phi=phi, kappa=kappa)
+
+  cat(paste0("w = ",inits_chain$w,"\n "))
+  cat(paste0("tau = ", inits_chain$tau, "\n "))
+  cat(paste0("phi = ", inits_chain$phi, "\n "))
+  cat(paste0("kappa = ", inits_chain$kappa))
+
 
   return(inits_chain)
 }

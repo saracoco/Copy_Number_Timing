@@ -1,20 +1,20 @@
 // reparametrization with dirichlet alpha being mean value of w and nuber of observations of the prior
 data {
   // input the karyotyoe to specify the formula for theta
-  //
-  int S; // number of segments
-  int K; // clocks
-  int N; // total number of mutations
-  array[S] int karyotype; // list of karyotype associated wit the segments
-  array[N] int seg_assignment; // segment_id assignment to the mutations
-  array[S,2] real peaks;  //for each segment, S vectors of dim 2
-  array[N] int NV;     // for all the segments
+
+  int S;                        // number of segments
+  int K;                        // clocks
+  int N;                        // total number of mutations
+  array[S] int karyotype;       // list of karyotype associated wit the segments
+  array[N] int seg_assignment;  // segment_id assignment to the mutations
+  array[S,2] real peaks;        //for each segment, S vectors of dim 2
+  array[N] int NV;              // for all the segments
   array[N] int DP;
 }
 
 
 parameters {
-  array[S] simplex[K] w;  // simplex[K] w[N] mixing proportions for each segment group;
+  array[S] simplex[K] w;              // simplex[K] w[N] mixing proportions for each segment group;
   vector<lower=0,upper=1>[K] tau;     //clocks   ordered[K] tau  vector<lower=0,upper=1>[K]
   //vector[K] alpha;
   simplex[K] phi;
@@ -24,6 +24,7 @@ parameters {
 transformed parameters{
 
   array[S,K,2] real<lower=0,upper=1> theta; //binomial mixing proportions // array[S,K] simplex[2] theta;
+
 
   for (s in 1:S){
    for (k in 1:K){
@@ -49,15 +50,19 @@ model {
 
   // priors
 
-  //alpha ~
+                                          // alpha 
   phi ~ dirichlet(rep_vector(1.0, K));;
-  kappa ~ normal(5,2.5);
-  // phi = expected value of w, kappa (minus K) = concentrazione della distribuzione / strength of the prior mean measured in number of prior observations.
+  kappa ~ gamma(2, 0.5);                  // strictly positive with a long right tail.
+                                          // phi = expected value of w, kappa (minus K) = concentrazione della distribuzione / strength of the prior mean measured in number of prior observations.
 
   for (s in 1:S){
       w[s] ~ dirichlet(alpha);
   }
-  tau ~ beta(2,2);
+
+  for (k in 1:K) {
+    tau[k] ~ beta(2,2);                   // Beta prior for tau
+  }
+  
 
 
 
@@ -71,19 +76,21 @@ model {
         }
       }
       target += log_sum_exp(contributions);
-      //print(target)
+
     }
 }
 
 
 generated quantities {
-  array[N] int comp_tau;    // Component identifier "comp"
-  array[N] int comp_binomial; // Binomial component identifier
-  vector[N] NV_pred;  // Predicted NV
+
+
+
+  array[N] int comp_tau;                    // Component identifier "comp"
+  array[N] int comp_binomial;               // Binomial component identifier
+  vector[N] NV_pred;                        // Predicted NV
   vector[2] theta_vector;
-
-  vector[N] log_lik; // log-likelihood for each data point
-
+  
+  vector[N] log_lik;                        // log-likelihood for each data point
   for (i in 1:N) {
     vector[K*2] contributions;
     int c = 1;
@@ -101,5 +108,45 @@ generated quantities {
     comp_binomial[i] = categorical_rng(theta_vector);
     NV_pred[i] = binomial_rng(DP[i], peaks[seg_assignment[i], comp_binomial[i]]);
   }
+
+
+  // Priors for parameters
+  vector<lower=0,upper=1>[K] tau_prior;    // Prior for tau
+  array[S] vector[K] w_prior;              // Prior for w
+  simplex[K] phi_prior;                    // Prior for phi
+  real<lower=0> kappa_prior;               // Prior for kappa
+
+  // Priors for transformed parameters
+  array[S, K, 2] real<lower=0,upper=1> theta_prior;  // Prior for theta
+  vector[K] alpha_prior;  // Prior for alpha
+
+  // Sample from the priors
+  phi_prior = dirichlet_rng(rep_vector(1.0, K));    // Dirichlet prior for phi
+  kappa_prior = gamma_rng(2, 0.5);                  // Random sample from Gamma(2, 0.5)
+  
+  alpha_prior = kappa_prior * phi_prior;            // Prior for alpha
+
+  for (s in 1:S) {
+    w_prior[s] = dirichlet_rng(alpha_prior);        // Dirichlet prior for w
+  }
+
+  for (k in 1:K) {
+    tau_prior[k] = beta_rng(2, 2);                  // Beta prior for tau
+  }
+
+  // Generate theta_prior based on tau_prior
+  for (s in 1:S) {
+    for (k in 1:K) {
+      if (karyotype[s] == 1) {
+        theta_prior[s,k,1] = (3 - 2 * tau_prior[k]) / (3 - tau_prior[k]); // 2:1
+        theta_prior[s,k,2] = tau_prior[k] / (3 - tau_prior[k]);
+      } else {
+        theta_prior[s,k,1] = (2 - 2 * tau_prior[k]) / (2 - tau_prior[k]); // 2:0 - 2:2
+        theta_prior[s,k,2] = tau_prior[k] / (2 - tau_prior[k]);
+      }
+    }
+  }
+
+  
 }
 

@@ -121,33 +121,35 @@ for(i in 1:n_simulations){
 
 
 
-  simulation_data_plot = simulation_data_all_segments %>% mutate (tau = round(tau, 2))
-  plot_data <- simulation_data_plot %>% 
-    ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
-    geom_histogram(alpha = .5, position = "identity") +
-    labs(
-      title = "Distribution on the VAF for each segment in the simulated data",
-      subtitle = paste0(Subtitle_short)
-    )+
-    facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
-    theme_minimal() +
-    theme(
-    panel.background = element_rect(fill = "white", color = NA),  # White panel background
+simulation_data_plot <- simulation_data_all_segments %>% mutate(tau = round(tau, 2))
+
+plot_data <- simulation_data_plot %>%
+  ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
+  geom_histogram(alpha = 0.7, position = "identity", color = "black") + # Add borders for visibility
+  labs(
+    title = "Distribution on the VAF for each segment in the simulated data",
+    subtitle = paste0(Subtitle_short)
+  ) +
+  facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "white", color = "grey90"),  # Light grey panel background
     plot.background = element_rect(fill = "white", color = NA),   # White plot background
-    strip.background = element_rect(fill = "white", color = NA),  # White strip background
+    strip.background = element_rect(fill = "grey85", color = NA),  # Light strip background
     strip.placement = "outside",   # Place facet labels outside
-    axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black", size = 10),  # Rotate x-axis text for readability
     axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
-    panel.spacing = unit(1, "lines"),  # Adjust space between facets
-    strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
+    panel.spacing = unit(1.5, "lines"),  # Increase space between facets
+    strip.text.x = element_text(size = 11, color = "black", face = "bold"),  # Bold and adjust strip text
     axis.line = element_line(color = "black"),  # Black axis lines
-    axis.title.x = element_text(color = "black"),  # Black x-axis title
-    axis.title.y = element_text(color = "black")   # Black y-axis title
+    axis.title.x = element_text(color = "black", size = 12, face = "bold"),  # Bold x-axis title
+    axis.title.y = element_text(color = "black", size = 12, face = "bold")   # Bold y-axis title
   )
 
 
+
   #save plot of the simulated data in which we can see each single segment VAF distribution
-  ggsave("./plots/simulation_data.png", plot = plot_data, width = 12 + simulation_params$number_events, height = 10 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
+  ggsave("./plots/simulation_data.png", plot = plot_data, width = 8 + simulation_params$number_events, height = 6 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
   #simulation_params can be substituted in relation with simulation_data variables
   
   
@@ -166,7 +168,6 @@ for(i in 1:n_simulations){
   model_selection <- results$model_selection_tibble
   saveRDS(model_selection, "./results/model_selection.rds")
   
-
   
   setwd(original_dir)
   

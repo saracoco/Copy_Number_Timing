@@ -145,28 +145,32 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   #plot filter data to save separately and compare vaf distribution before and after the filtering step, I can remove maybe later
   plot_filtered_data_complete <- accepted_mutations %>%
   ggplot(mapping = aes(x = NV / DP, fill = segment_id)) +
-  geom_histogram(alpha = .5, position = "identity") +
+  geom_histogram(alpha = 0.6, position = "identity", color = "black") + # Add a black border to bars
   facet_wrap(vars(karyotype, tau, segment_id), scales = "free_x", strip.position = "bottom") +
-  geom_vline(aes(xintercept = peaks_1), color = "grey") +
-  geom_vline(aes(xintercept = peaks_2), color = "grey") +
+  geom_vline(aes(xintercept = peaks_1), color = "grey", linetype = "dashed") +  # Dashed lines for peaks
+  geom_vline(aes(xintercept = peaks_2), color = "grey", linetype = "dashed") + 
   theme_minimal() +
   theme(
-  panel.background = element_rect(fill = "white", color = NA),  # White panel background
-  plot.background = element_rect(fill = "white", color = NA),   # White plot background
-  strip.background = element_rect(fill = "white", color = NA),  # White strip background
-  strip.placement = "outside",   # Place facet labels outside
-  axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
-  axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
-  panel.spacing = unit(1, "lines"),  # Adjust space between facets
-  strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
-  axis.line = element_line(color = "black"),  # Black axis lines
-  axis.title.x = element_text(color = "black"),  # Black x-axis title
-  axis.title.y = element_text(color = "black")   # Black y-axis title
-  )+
-  labs(x = "VAF")+
+    panel.background = element_rect(fill = "white", color = NA),  
+    plot.background = element_rect(fill = "white", color = NA),   
+    strip.background = element_rect(fill = "white", color = NA),  
+    strip.placement = "outside",   
+    axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  
+    axis.ticks.x = element_line(color = "black"),  
+    panel.grid.major = element_line(color = "grey90"), # Subtle grid lines
+    panel.spacing = unit(1, "lines"),  
+    strip.text.x = element_text(size = 10, color = "black"),  
+    axis.line = element_line(color = "black"),  
+    axis.title.x = element_text(color = "black", size = 12),  # Bigger font for axis titles
+    axis.title.y = element_text(color = "black", size = 12),   
+    plot.title = element_text(size = 16, face = "bold"),  # Bold title for better readability
+    plot.subtitle = element_text(size = 12, face = "italic")  # Italic subtitle
+  ) +
   labs(
-    title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (simulation_params$number_events) ) ),
-    subtitle = paste0( Subtitle_short )
+    x = "VAF",
+    y = "Count",
+    title = "Histogram of the VAF spectrum, per segment",
+    subtitle = "Only the data used in the inference after the filtering step are plotted"
   )
 
   ggsave("./plots/plot_filtered_data_complete.png", plot = plot_filtered_data_complete, width = 8 + simulation_params$number_events, height = 6 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
@@ -342,8 +346,10 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
                                   group_by(segment_id) %>%
                                   summarize(tau = first(tau)) %>%
                                   arrange(match(segment_id, unique(accepted_mutations$segment_id))) %>%
-                                  pull(tau)
-    model_assignment <- identity_matrix_RI
+                                  pull(tau) # here real_assignment is the true tau associated to the segment
+    real_assignment <- rank(real_assignment, ties.method = "min") # here is the "class" to which it is associated --> the first event, the second ecc
+
+    model_assignment <- identity_matrix_RI        #i,2,3 ecc 
     RI <- rand.index(real_assignment,model_assignment)
     #ARI <- adj.rand.index(real_assignment,model_assignment)  #NaN
     saveRDS(RI, paste0("results/RI_",K,".rds"))
@@ -373,14 +379,76 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
 
 
 
+library(ggplot2)
+library(dplyr)
+library(tidyr)
 
+plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
+    
+    accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k? 
 
+    #prepare data as for the MAE computation 
+    names_tau <- paste("tau[", 1:K, "]", sep = "")
+    tau_inferred <- res$draws(names_tau, format = "matrix")
+    tau_inferred_median <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
 
+    identity_matrix_RI = c()
 
+    # Loop through each segment and determine its tau assignment
+    for (i in seq_along(unique(accepted_mutations$segment_id))) {
+        segment <- unique(accepted_mutations$segment_id)[i]
+        seg_modified <- str_split(segment, " ")
+        segment_number <- seg_modified[[1]][2]
 
+        names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  
+        weights_inferred <- res$draws(names_weights, format = "matrix")
+        weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
 
+        tau_index_assigned <- which.max(weights_inferred_median)
+        identity_matrix_RI <- c(identity_matrix_RI, tau_index_assigned)
+    }
 
+    # Prepare the data for ggplot: Ensure that all segments are visible
+    segments <- unique(accepted_mutations$segment_id)
+    plot_data <- data.frame(
+        segment = segments,
+        tau_index_assigned = identity_matrix_RI,
+        tau_inferred_median = tau_inferred_median[identity_matrix_RI]
+    )
 
+    # Create circles around each tau assignment
+    circle_data <- data.frame(
+        tau_inferred_median = rep(tau_inferred_median, each = 100),
+        angle = rep(seq(0, 2 * pi, length.out = 100), times = K),
+        tau_index_assigned = rep(1:K, each = 100)
+    ) %>%
+    mutate(
+        x = tau_inferred_median + 0.05 * cos(angle),  # Adjust the circle radius as needed
+        y = tau_index_assigned + 0.05 * sin(angle)  # Adjust y for the circle path
+    )
+
+    # Plot using ggplot2
+    p <- ggplot() +
+        # Plot circles
+        geom_path(data = circle_data, aes(x = x, y = tau_index_assigned, group = tau_index_assigned), color = "black") +
+        # Plot points for each segment at each tau inferred
+        geom_point(data = plot_data, aes(x = tau_inferred_median, y = tau_index_assigned), size = 3) +
+        # Add text labels for each segment with a white background
+        geom_label(data = plot_data, aes(x = tau_inferred_median, y = tau_index_assigned, label = segment),
+                   fill = "white", color = "black", label.padding = unit(0.1, "lines"), size = 3) +
+        # Customize axes with tau values directly
+        scale_x_continuous(breaks = tau_inferred_median, labels = round(tau_inferred_median, 2)) +
+        labs(x = "Time (Tau Inferred Median)", y = "Assigned Tau Index") +
+        theme_minimal() +
+        # Set white background for the plot
+        theme(
+            panel.background = element_rect(fill = "white", color = NA),
+            plot.background = element_rect(fill = "white", color = NA),
+            panel.grid = element_blank()
+        )
+
+    return(p)  # Return the ggplot object
+}
 
 
 
@@ -392,51 +460,104 @@ plotting_model_selection <- function(results){
   k_max = nrow(model_selection)
   
   
-  bic_plot <- ggplot(data = model_selection, aes(x = K, y = BIC)) + 
-    geom_line(aes(colour = "BIC Line")) + 
-    geom_point(aes(colour = "BIC Point")) +
-    geom_point(aes(x = best_K, y = BIC[K == best_K], colour = "Best K Point")) +
-    geom_point(aes(x = K[BIC == min(BIC)], y = min(BIC), colour = "Minimum Point")) +
+# BIC plot
+bic_plot <- ggplot(data = model_selection, aes(x = K, y = BIC)) + 
+    geom_line(aes(colour = "BIC Line"), size = 1) + 
+    geom_point(aes(colour = "BIC Point"), size = 3) +
+    geom_point(aes(x = best_K, y = BIC[K == best_K], colour = "Best K Point"), size = 4) +
+    geom_point(aes(x = K[BIC == min(BIC)], y = min(BIC), colour = "Minimum Point"), size = 4) +
     scale_colour_manual(name = "Legend",
-                        values = c("BIC Line" = "blue", 
-                                   "BIC Point" = "blue", 
-                                   "Best K Point" = "red",
-                                   "Minimum Point" = "green"),)
-  
-  aic_plot <- ggplot(data = model_selection, aes(x = K, y = AIC)) + 
-    geom_line(aes(colour = "AIC Line")) + 
-    geom_point(aes(colour = "AIC Point")) +
-    geom_point(aes(x = best_K, y = AIC[K == best_K], colour = "Best K Point")) +
-    geom_point(aes(x = K[AIC == min(AIC)], y = min(AIC), colour = "Minimum Point")) +
-    scale_colour_manual(name = "Legend",
-                        values = c("AIC Line" = "blue", 
-                                   "AIC Point" = "blue", 
-                                   "Best K Point" = "red",
-                                   "Minimum Point" = "green"))
-  
+                        values = c("BIC Line" = "steelblue", 
+                                   "BIC Point" = "steelblue", 
+                                   "Best K Point" = "firebrick",
+                                   "Minimum Point" = "forestgreen")) +
+    theme_minimal(base_size = 15) +  # Tema minimalista
+    theme(legend.position = "top",  # Sposta la legenda sopra il grafico
+          legend.title = element_blank(),  # Rimuove il titolo della legenda
+          panel.grid.minor = element_blank(),  # Rimuove le griglie minori
+          panel.grid.major.x = element_blank(),  # Rimuove le griglie verticali
+          axis.title.x = element_text(margin = margin(t = 10)),  # Spazio per l'asse X
+          axis.title.y = element_text(margin = margin(r = 10)),
+          plot.margin = margin(5, 20, 5, 5))  # Spazio per l'asse Y
 
-  loo_plot <- ggplot(data = model_selection, aes(x = K, y = LOO)) + 
-    geom_line(aes(colour = "LOO Line")) + 
-    geom_point(aes(colour = "LOO Point")) +
-    geom_point(aes(x = best_K, y = LOO[K == best_K], colour = "Best K Point")) +
-    geom_point(aes(x = K[LOO == min(LOO)], y = min(LOO), colour = "Minimum Point")) +
+
+# AIC Plot
+aic_plot <- ggplot(data = model_selection, aes(x = K, y = AIC)) + 
+    geom_line(aes(colour = "AIC Line"), size = 1) + 
+    geom_point(aes(colour = "AIC Point"), size = 3) +
+    geom_point(aes(x = best_K, y = AIC[K == best_K], colour = "Best K Point"), size = 4) +
+    geom_point(aes(x = K[AIC == min(AIC)], y = min(AIC), colour = "Minimum Point"), size = 4) +
     scale_colour_manual(name = "Legend",
-                        values = c("LOO Line" = "blue", 
-                                   "LOO Point" = "blue", 
-                                   "Best K Point" = "red",
-                                   "Minimum Point" = "green"))
-  
-  
-  log_lik_plot <- ggplot(data = model_selection, aes(x = K, y = Log_lik)) + 
-    geom_line(aes(colour = "Log likelihood Line")) + 
-    geom_point(aes(colour = "Log likelihood Point")) +
-    geom_point(aes(x = best_K, y = Log_lik[K == best_K], colour = "Best K Point")) +
-    geom_point(aes(x = K[Log_lik == max(Log_lik)], y = max(Log_lik), colour = "Minimum Point")) +
+                        values = c("AIC Line" = "steelblue", 
+                                   "AIC Point" = "steelblue", 
+                                   "Best K Point" = "firebrick",
+                                   "Minimum Point" = "forestgreen")) +
+    theme_minimal(base_size = 15) +  
+    theme(legend.position = "top",  
+          legend.title = element_blank(),  
+          panel.grid.minor = element_blank(),  
+          panel.grid.major.x = element_blank(),  
+          axis.title.x = element_text(margin = margin(t = 10)),  
+          axis.title.y = element_text(margin = margin(r = 10)),
+          plot.margin = margin(5, 20, 5, 5))
+
+# LOO Plot
+loo_plot <- ggplot(data = model_selection, aes(x = K, y = LOO)) + 
+    geom_line(aes(colour = "LOO Line"), size = 1) + 
+    geom_point(aes(colour = "LOO Point"), size = 3) +
+    geom_point(aes(x = best_K, y = LOO[K == best_K], colour = "Best K Point"), size = 4) +
+    geom_point(aes(x = K[LOO == min(LOO)], y = min(LOO), colour = "Minimum Point"), size = 4) +
     scale_colour_manual(name = "Legend",
-                        values = c("Log likelihood Line" = "blue", 
-                                   "Log likelihood Point" = "blue", 
-                                   "Best K Point" = "red",
-                                   "Minimum Point" = "green"))
+                        values = c("LOO Line" = "steelblue", 
+                                   "LOO Point" = "steelblue", 
+                                   "Best K Point" = "firebrick",
+                                   "Minimum Point" = "forestgreen")) +
+    theme_minimal(base_size = 15) +  
+    theme(legend.position = "top",  
+          legend.title = element_blank(),  
+          panel.grid.minor = element_blank(),  
+          panel.grid.major.x = element_blank(),  
+          axis.title.x = element_text(margin = margin(t = 10)),  
+          axis.title.y = element_text(margin = margin(r = 10)),
+          plot.margin = margin(5, 20, 5, 5))
+
+# Log Likelihood Plot
+log_lik_plot <- ggplot(data = model_selection, aes(x = K, y = Log_lik)) + 
+    geom_line(aes(colour = "Log likelihood Line"), size = 1) + 
+    geom_point(aes(colour = "Log likelihood Point"), size = 3) +
+    geom_point(aes(x = best_K, y = Log_lik[K == best_K], colour = "Best K Point"), size = 4) +
+    geom_point(aes(x = K[Log_lik == max(Log_lik)], y = max(Log_lik), colour = "Minimum Point"), size = 4) +
+    scale_colour_manual(name = "Legend",
+                        values = c("Log likelihood Line" = "steelblue", 
+                                   "Log likelihood Point" = "steelblue", 
+                                   "Best K Point" = "firebrick",
+                                   "Minimum Point" = "forestgreen")) +
+    theme_minimal(base_size = 15) +  
+    theme(legend.position = "top",  
+          legend.title = element_blank(),  
+          panel.grid.minor = element_blank(),  
+          panel.grid.major.x = element_blank(),  
+          axis.title.x = element_text(margin = margin(t = 10)),  
+          axis.title.y = element_text(margin = margin(r = 10)),
+          plot.margin = margin(5, 20, 5, 5))
+
+# Update the BIC plot
+bic_plot <- bic_plot +
+  scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
+  geom_label(aes(label = round(BIC, 2)), nudge_y = -10, size = 3, fill = "white", color = "black") 
+# Update the AIC plot
+aic_plot <- aic_plot +
+  scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
+  geom_label(aes(label = round(AIC, 2)), nudge_y = -2, size = 3, fill = "white", color = "black")
+# Update the LOO plot
+loo_plot <- loo_plot +
+  scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
+  geom_label(aes(label = round(LOO, 2)), nudge_y = 50, size = 3, fill = "white", color = "black") 
+# Update the Log Likelihood plot
+log_lik_plot <- log_lik_plot +
+  scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
+  geom_label(aes(label = round(Log_lik, 2)), nudge_y = -0.01, size = 3, fill = "white", color = "black") 
+
   
   S <- length(unique(results$accepted_mutations$segment_id))
   Subtitle <- rep(NA, times=k_max)
@@ -450,13 +571,34 @@ plotting_model_selection <- function(results){
   
   
   
-  model_selection_plot <- (bic_plot | aic_plot) / (loo_plot|log_lik_plot) +
+
+# Combinazione dei grafici con layout e annotazioni
+model_selection_plot <- (bic_plot | aic_plot) / (loo_plot | log_lik_plot) +
   plot_annotation(
-    title = "Model selection graphs: score vs number of clusters" ,
-    subtitle = paste0 ("Correspondence between number of clusters and number of parameters:  \n", Subtitle),
-    caption = " "
-  ) & theme(text = element_text(size = 8), plot.title = element_text(size = 10), plot.subtitle = element_text(size = 8), axis.text = element_text(size = 8), plot.caption = element_text(size = 8))
-  
+    title = "Model Selection Graphs: Score vs Number of Clusters",
+    subtitle = paste0("Correspondence between number of clusters and number of parameters: \n", Subtitle),
+    caption = "Source: Your Data",
+    theme = theme_minimal(base_size = 12) +  # Tema minimalista con base 12
+      theme(
+        plot.title = element_text(face = "bold", size = 14, hjust = 0.5, margin = margin(b = 10)),
+        plot.subtitle = element_text(size = 10, hjust = 0.5, margin = margin(b = 10)),
+        plot.caption = element_text(size = 8, hjust = 0.5, margin = margin(t = 10)),
+        plot.background = element_rect(fill = "white", color = NA),  # Sfondo bianco senza bordo
+        panel.background = element_blank(),
+        panel.grid.major = element_line(color = "gray80", size = 0.2),  # Griglie sottili e discrete
+        panel.grid.minor = element_blank()
+      )
+  ) & 
+  theme(
+    text = element_text(size = 10), 
+    plot.title = element_text(size = 12, face = "bold", margin = margin(b = 10)),
+    plot.subtitle = element_text(size = 10, face = "italic", margin = margin(b = 10)),
+    axis.text = element_text(size = 8),
+    plot.caption = element_text(size = 8)
+  )
+
+
+
   return(model_selection_plot)
 }
 

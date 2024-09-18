@@ -7,6 +7,8 @@ Mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 dir_names = paste0("../",1:12)
+dir_names_INIT = paste0("../",1:12,"_INIT")
+
 names = paste0(1:12)
 # list of average score (among the 20 repetitions of the same simulation type) 
 # of the model choosen as best with model selection
@@ -40,7 +42,7 @@ for (i in dir_names) {
     directories_number = length(simulation_directories)
 
     # for loop on iteration of simulation
-    for (i in 1:directories_number){ 
+    for (i in 1:(directories_number-1)){ 
 
         setwd(paste0("simulation_iteration_",i,"/results"))
         single_directory = getwd()

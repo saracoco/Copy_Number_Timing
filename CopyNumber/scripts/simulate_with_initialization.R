@@ -26,12 +26,12 @@ self_name = "try_INIT"
 new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
 dir.create(new_dir)
 
-number_events = 2
-number_clocks = 1
+number_events = 4
+number_clocks = 2
 
 INIT = TRUE
 epsilon = 0.20
-n_simulations = 1
+n_simulations = 6
 purity = 0.99
 
 vector_karyo <- c("2:0", "2:1", "2:2")
