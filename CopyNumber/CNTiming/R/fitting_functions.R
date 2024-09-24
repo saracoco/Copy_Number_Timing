@@ -1,6 +1,8 @@
 library(rstan)
 library(tidyr)
 library(ggthemes)
+library(matrixStats)
+library(dplyr)
 
 
 #' fit_model_selection_best_K Function
@@ -16,7 +18,7 @@ library(ggthemes)
 #' @examples
 #' fit_model_selection()
 
-fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=10, INIT=TRUE, simulation_params = simulation_params){
+fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=4, INIT=TRUE, simulation_params = simulation_params){
 
   
   if (INIT==TRUE){
@@ -50,6 +52,12 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
       res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE)
     }
 
+    
+
+
+    ############################################
+    # SELECT BEST MODEL 
+
     accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k?
 
     S <- length(unique(accepted_mutations$segment_id))
@@ -69,9 +77,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
 
     log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE)
-    
-    
-
     cat (paste0(" loglik = likelihood value from generated quantities"))
     cat(mean(log_lik_matrix),dim(log_lik_matrix))
 
@@ -88,7 +93,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
     cat(L)
 
 
-    
 
     BIC <- ((k_inferred * log(N)) - 2 * L) # %>% unname()
     AIC <- 2 * k_inferred - 2 * L
@@ -111,7 +115,224 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
     # psis_result <- psis(log_ratios, r_eff = r_eff)
 
 
-    model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L))
+  # ########################## TO OBTAIN RESPONSIBILITY TO CHECK NV REPLICATED ASSIGNMENT FOR BINOMIAL COMPONENT - - - UNCOMMENT PLOTS  ################
+  #   # SELECT BEST MODEL  pt 1 
+  #   accepted_mutations = readRDS("results/accepted_mutations.rds") 
+  #   S <- length(unique(accepted_mutations$segment_id))
+  #   stanfit <- rstan::read_stan_csv(res$output_files())
+  #  # OBTAIN RESPONSIBILITIES TO EVALUATE THE ICL ASSOCIATED TO THE MODEL 
+  #  ##############################
+  #   N <- nrow(accepted_mutations)
+  #   Y = accepted_mutations$NV
+  #   DP = accepted_mutations$DP
+  #   seg_assignment = accepted_mutations$segment_id
+  #   w <- as.matrix(stanfit, pars = "w")
+  #   J=2 #number of binomial mixture components
+    iterations = 1000
+  #   ###############################
+  #   Y_pred = rep.int(0,1000*N)
+  #   Y_pred = as.matrix(Y_pred)
+  #   dim(Y_pred) = c(1000,N)
+  #   # comp_binomial = as.matrix(stanfit, pars = "comp_binomial")
+  #   # print(paste0("dimension of comp_binomial ",dim(comp_binomial)))
+  #   comp_tau = as.matrix(stanfit, pars = "comp_tau")
+  #   theta = as.matrix(stanfit, pars = "theta")
+  #   responsibilities <- matrix(0, nrow=N * iterations, ncol=J)
+  #   dim(responsibilities) = c(1000, N, J)
+  #   prob_comp_binom <- matrix(0, nrow=S*iterations, ncol=J) # proportion of the binomial component per segment    
+  #   dim(prob_comp_binom) = c(1000, S, J)
+  #   ###############################
+  #   #####OBTAIN THE RESPONSIBILITIES IN ORDER TO OBTAIN THE ASSIGNMENT PER SINGLE OBSERVATION 
+  #   # obtain the marginals of theta per segment
+  #   for (iter in 1:iterations){
+  #     theta_iter = theta[iter,]
+      
+  #     dim(theta_iter) = c(S,K,2)
+      
+  #     w_iter = w[iter,]
+  #     dim(w_iter) = c(S,K)
+  #     function_sumK <- function(s, j, K, theta_iter, w_iter) {
+  #       component = numeric(K)
+  #       for (k in 1:K) {
+  #         component[k] = theta_iter[s, k, j] * w_iter[s, k]
+  #       }
+  #       return(sum(component))
+  #     }
+  #     for (s in 1:S){
+  #       prob_comp_binom[iter, s, ] <- sapply(1:J, function(j) function_sumK(s, j, K, theta_iter, w_iter))
+  #     }
+  #   }
+  #         peaks_  <- matrix(0, nrow=S, ncol=J) # proportion of the binomial component per segment 
+  #         dim(peaks_) = c(S,2)
+  #         peaks_ =  input_data$peaks
+  #         dim(peaks_) = c(S,2)
+  #         seg_ass=as.integer(input_data$seg_assignment[i])
+  #   for (iter in 1:iterations){
+  #     evaluate_responsibility <- function(prob_comp_binom, j, i, J=2, iter) {
+  #       component = numeric(J)
+
+  #       for (t in 1:J) {      
+  #         component[t] = prob_comp_binom[iter, seg_ass, t ]  * dbinom(Y[i] ,DP[i], peaks_[seg_ass, t] ) 
+  #       }
+  #       numerator = prob_comp_binom[iter,seg_ass, j ] * dbinom(Y[i] ,DP[i], peaks_[seg_ass, j]
+  #   )
+  #       denominator = sum(component)
+  #       result = numerator/(denominator)
+  #       return(result)
+  #     } 
+  #     for (i in 1:N){
+  #       responsibilities[iter,i, ] <- sapply(1:J, function(j) evaluate_responsibility(prob_comp_binom= prob_comp_binom,j=j, i=i, J=2, iter=iter))
+  #     }
+  #   }
+
+
+
+
+
+
+
+
+
+
+
+    # POSSO CANCELLARLO ########################################################################################################à
+    # print(responsibilities[1,1,1])
+    # print(responsibilities[1,1,2])
+    
+    # print(dim(responsibilities))
+
+    # Assignment to the component
+    # assignments <- apply(responsibilities, c(1, 2), which.max)
+    #print(dim(assignments))
+    #  ####################### OBTAIN THE Y_REP #######################################
+    #   repeat_checking = 50
+    #   for (iter in 1:repeat_checking){
+    #     for (i in 1:N){
+    #       results <- data.frame(point = input_data$NV, responsibilities[iter,,], assignments[iter,])
+    #       colnames(results)[-1] <- c(paste0("component", 1:J, "_prob"), "assignments")     
+    #       Y_pred[iter, i] = rbinom(1,DP[i], peaks_[seg_ass, results$assignments[i]])
+    #   }
+    #   }
+    #   ############### prepare the data y_rep to plot them ################################à
+    #   y_pred = matrix(Y_pred[repeat_checking,], nrow=repeat_checking, ncol=N)
+    #   #fast check on one iteration of the predicted simulation (in sample simulation)
+    #   y <- data.frame(point = Y)
+    #   for (i in 1:nrow(y_pred)) {
+    #     y[[paste0("Y_pred",i)]] <- Y_pred[i,]
+    #   }
+    #   y$id <- 1:nrow(y)
+    #   y <- reshape2::melt(y,  id.vars = 'id', variable.name = 'series')
+    #   y <- y %>% mutate (series = ifelse (grepl("Y_pred", series), "NV_obs", "NV_rep" )) 
+
+    # # plot predicted vs observed NV 
+    #   intervals_compare_responsibilities <- ggplot(y[1:10000,], aes(id, value)) +
+    #   geom_point(aes(colour = series),alpha=.2) +
+    #   labs(title = "Predicted data points VS observed values",
+    #       x = "point ID",
+    #       y = "NV")
+    #   ggsave(paste0("./plots/predicted_vs_obs_responsibilities",K,".png"), limitsize = FALSE, device = png, plot=intervals_compare_responsibilities)
+    ##  ICL CALCULATION FROM LOG_LIKELIHOOD ASSOCIATED TO RESPONSIBILITIES (VEDI TEORIA)
+    
+
+    # Generate names for w[sim_params_num, K] format
+    names_weights <- outer(1:simulation_params$number_events, 1:K, 
+                          FUN = function(i, j) paste0("w[", i, ",", j, "]"))
+
+    # Convert to a vector for easier extraction
+    names_weights <- as.vector(names_weights)
+    w_ICL <- as.matrix(stanfit, pars = names_weights)
+    dim(w_ICL) = c(iterations,S*K)
+    w_ICL <- colMeans(w_ICL) # sum over iterations
+    dim(w_ICL) = c(S,K) # check by row
+
+
+    # average_responsibilities <- apply(responsibilities, c(2, 3), mean)
+    # Calculate log likelihood using responsibilities
+    log_lik_matrix_ICL <- extract_log_lik(stanfit, parameter_name = "log_lik_matrix", merge_chains = TRUE)
+    dim(log_lik_matrix_ICL) = c(1000,N*K*2)  
+    log_lik_matrix_ICL <- colMeans(log_lik_matrix_ICL)
+    dim(log_lik_matrix_ICL) = c(N,K*2)  
+
+
+    print(paste0("dim of log_lik_matrix", dim(log_lik_matrix_ICL)))
+  
+    # Initialize a matrix to store the marginalized log-likelihoods (N x 2 for the two binomial components)
+    marginalized_log_lik <- matrix(0, nrow = N, ncol = K)
+
+
+    for (i in 1:N) {
+      for (j in 1:K) {  # Loop over the mixture component (two binomial components)
+        # Sum over the K tau components for the j-th mixture component (binomial component)
+
+        marginalized_log_lik[i, j] <- logSumExp(log_lik_matrix_ICL[i, seq(j, j+1)]) #as this I obtain for each mtation i the sum of the binomial components for each mixture component,
+         # now I should sum the columns that belong to the same segment and keep them ordered to then being summed
+         # to obtain it for the binomial components > seq(j, K * 2, by = 2)
+      }
+    }
+
+
+# CAPIRE SE I PESI W[1,2] ECC SONO ORDINATI NELLO STESSO MODO IN CUI APPAIONO I SEGMENT_ID IN ACCEPTED_MUTATIONS
+# w [segmento, mixture component]
+
+      # Convert marginalized_log_lik to a data frame and add segment_id
+      df_marginalized <- as.data.frame(marginalized_log_lik)
+      df_marginalized$segment_index <- accepted_mutations$segment_index
+
+      # Retain the order of appearance of segment_id in accepted_mutations
+      segment_order <- accepted_mutations$segment_index %>% unique()
+      # Group by segment_id and sum columns while retaining the order of segment_id
+      result <- df_marginalized %>%
+        group_by(segment_index) %>%
+        summarise(across(everything(), sum, .names = "sum_{col}"), .groups = 'drop') %>%
+        slice(match(segment_order, segment_index))
+      # The resulting data frame has the summed columns for each segment in the original order
+
+
+     print(paste0("dim of w_ICL", dim(w_ICL)))
+     print(paste0("dim of log_lik_matrix_ICL", dim(result)))
+     #print(results)
+      print(accepted_mutations$segment_index[1])
+
+
+
+
+      elementwise_product <- w_ICL * result
+
+      row_sums <- rowSums(elementwise_product)
+
+      # Step 3: Compute the mean across all segments
+      log_lik_mean <- mean(row_sums)
+
+      # Step 4: Add a penalization term (assuming penalty is proportional to K * log(N))
+      # You can define your penalty based on model complexity
+      N <- nrow(w_ICL)  # Number of segments
+      K <- ncol(w_ICL)  # Number of components
+      penalty_term <- -0.5 * K * log(N)
+
+      # Step 5: Compute the ICL by adding the penalization term
+      ICL <- log_lik_mean + penalty_term
+
+
+
+
+
+
+
+    # # Now apply the responsibilities to the marginalized log-likelihoods
+    # log_lik_responsibilities <- rowSums(marginalized_log_lik * responsibilities)
+    # # Calculate the mean log-likelihood weighted by responsibilities
+    # L_responsibilities <- mean(log_lik_responsibilities)
+
+    # #ICL complexity penalty
+    # complexity_penalty <- k_inferred * log(N)
+    # ICL <- L_responsibilities - complexity_penalty
+
+
+
+
+
+
+    model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L, ICL = ICL))
     
 
 
@@ -284,73 +505,79 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 ##### fit without filtering step ############################################################################################################################
 library(cmdstanr)
 
+#fit variational taking the best run 
 fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 10000, grad_samples = 1, elbo_samples = 100) {
+  # retry = failure
+  # attempts = best elbo
   model <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
-  attempt <- 0
-  fit_successful <- FALSE
-  res <- NULL
-  iter <- initial_iter
+  best_elbo <- -Inf  # Start with the worst possible ELBO
+  best_fit <- NULL  # To store the best model fit
+  total_attempts <- 0
+  
+  for (attempt in 1:max_attempts) {
+    message("Attempt ", attempt, " of ", max_attempts)
+    
+    # Initialize the number of retries for the current attempt
+    retries <- 0
+    fit_successful <- FALSE
+    iter <- initial_iter  # Reset iterations for each new attempt
+    
+    while (!fit_successful && retries < 3) {  # Set a max number of retries for each attempt
+      message("Running inference, retry ", retries + 1)
 
-  repeat {
-    attempt <- attempt + 1
-    message("Attempt ", attempt, " with ", iter, " iterations, ", grad_samples, " grad_samples, and ", elbo_samples, " elbo_samples")
+      result <- tryCatch({
+        if (INIT == TRUE) {
+          res <- model$variational(
+            data = input_data, 
+            init = list(initialization),  # Use the provided initialization
+            iter = iter, 
+            grad_samples = grad_samples, 
+            elbo_samples = elbo_samples
+          )
+        } else {
+          res <- model$variational(
+            data = input_data, 
+            iter = iter, 
+            grad_samples = grad_samples, 
+            elbo_samples = elbo_samples
+          )
+        }
+        
+        # Check if ELBO is available in the results and extract it
+        elbo_summary <- res$summary(variables = "lp__")
+        elbo <- max(elbo_summary$mean)  # Extract the highest ELBO
+        
+        # Update the best model if this ELBO is better
+        if (!is.na(elbo) && elbo > best_elbo) {
+          best_elbo <- elbo
+          best_fit <- res
+        }
 
-    result <- tryCatch({
-      if (INIT == TRUE) {
-        res <- model$variational(data = input_data, init = list(initialization), iter = iter, grad_samples = grad_samples, elbo_samples = elbo_samples)
-      } else {
-        res <- model$variational(data = input_data, iter = iter, grad_samples = grad_samples, elbo_samples = elbo_samples)
-      }
-
-      # Verifica se l'output contiene il messaggio di errore specifico
-      output_text <- capture.output(res$output())
-      output_text <- paste(output_text, collapse = "\n")
-
-      if (grepl("The number of dropped evaluations has reached its maximum amount", output_text)) {
-        stop("Fit failed: Maximum number of discarded evaluations reached.")
-      }
-
-      # Estrazione dei draws
-      draws <- res$draws(format = "matrix")
-
-      # Controlla se ci sono NAs nei draws
-      if (any(is.na(draws))) {
-        stop("Fit failed: draws contain NAs.")
-      }
-
-      fit_successful <- TRUE
-      res
-    }, error = function(e) {
-      message("An error occurred during inference: ", e$message)
-      return(NULL) # Ritorna NULL in caso di errore
-    })
-
-    if (fit_successful) {
-      message("Fit succeeded in attempt ", attempt)
-      break
+        message("ELBO for this run: ", elbo)
+        fit_successful <- TRUE  # Mark this fit as successful
+        
+      }, error = function(e) {
+        message("An error occurred during inference: ", e$message)
+        retries <- retries + 1  # Increment retry count
+        return(NULL)
+      })
+      
+      total_attempts <- total_attempts + 1  # Count total attempts regardless of success
     }
-
-    if (attempt >= max_attempts) {
-      message("Maximum number of attempts reached. Stopping.")
-      break
+    
+    if (retries == 3) {
+      message("Max retries reached for attempt ", attempt)
     }
-
-    # Incrementa il numero di iterazioni, grad_samples e elbo_samples per il prossimo tentativo
-    #iter <- iter * 2
-    grad_samples <- grad_samples * 2
-    elbo_samples <- elbo_samples * 2
   }
-
-  # Controlla se l'inferenza è riuscita
-  if (fit_successful) {
-    message("Inference completed successfully.")
-    return(res) # Ritorna il risultato se il fit è riuscito
+  
+  if (!is.null(best_fit)) {
+    message("Best ELBO after ", total_attempts, " attempts: ", best_elbo)
+    return(best_fit)  # Return the result with the best ELBO
   } else {
-    message("The inference could not be completed successfully.")
-    return(NULL) # Ritorna NULL se il fit non è riuscito
+    message("Inference could not be completed successfully.")
+    return(NULL)  # Return NULL if no fit was successful
   }
 }
-
 
 
 
@@ -423,7 +650,7 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     }) %>% unlist()
     
     # Get only good mutations
-    accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$segment_name[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] )
+    accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$segment_name[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] , segment_index=all_sim$segment_id[accepted_idx])
     
   }
   
@@ -483,8 +710,10 @@ get_init = function(data, K, phi=c(), kappa=5){
   res.fcm <- fcm(data, centers=K)
 
   init_taus <- c(res.fcm$v)
+  init_taus[init_taus >= 1] <- 0.99  # Check for elements greater than 1 and replace them with 1 otherwise fit fails
+  init_taus[init_taus == 0] <- 0.01   
   init_w <- as.matrix(res.fcm$u)
-  epsilon <- 1e-5
+  epsilon <- 1e-4
   perturbed_probabilities <- init_w + epsilon
 
   # Rinormalizza i pesi lungo l'asse 1 (per riga)

@@ -171,7 +171,8 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     y = "Count",
     title = "Histogram of the VAF spectrum, per segment",
     subtitle = "Only the data used in the inference after the filtering step are plotted"
-  )
+  )+
+    xlim(0, 1)
 
   ggsave("./plots/plot_filtered_data_complete.png", plot = plot_filtered_data_complete, width = 8 + simulation_params$number_events, height = 6 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
 
@@ -211,9 +212,9 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   peaks_1 = input_data$peaks[,1],
   peaks_2 = input_data$peaks[,2]
   )
-  all_sim <- merge(all_sim, vline_positions, by = "segment_name")
+  all_sim_ <- merge(all_sim, vline_positions, by = "segment_name")
 
-  simulation_data_plot = all_sim %>% mutate (tau = round(tau, 2))
+  simulation_data_plot = all_sim_ %>% mutate (tau = round(tau, 2))
   plot_data <- simulation_data_plot %>% 
     ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
     geom_histogram(alpha = .5, position = "identity") +
@@ -249,25 +250,23 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   
 
 
+# per ora commentato perché da errore
+  # hist_data <- all_sim %>%
+  #   count(tau = round(tau, 2)) %>%
+  #   filter(n > 0)
 
-
-
-  hist_data <- all_sim %>%
-    count(tau = round(tau, 2)) %>%
-    filter(n > 0)
-
-  taus <- all_sim %>%
-    ggplot(mapping = aes(x = tau)) +
-    geom_histogram(alpha = .5, position = "identity", fill = "skyblue4") +
-    labs(x = "tau")+
-    labs(
-      title = paste0( str_wrap("Distribution of tau in the simulated data", width = 40 + sqrt(simulation_params$number_events)) ),
-      subtitle = " " 
-    )+
-    xlim(0,1) +
-    stat_bin( geom="text", aes(label = ifelse(..count.. > 0, ..count.., "")), vjust=-1) +
-    stat_bin(geom = "text", aes(label = ifelse(..count.. > 0, paste0("bold(", sprintf("%.2f", ..x..), ")"), "")), vjust=2, parse = TRUE)  +
-    geom_hline(data = hist_data, aes(yintercept = n), linetype = "dashed", color = "grey")
+  # taus <- all_sim %>%
+  #   ggplot(mapping = aes(x = tau)) +
+  #   geom_histogram(alpha = .5, position = "identity", fill = "skyblue4") +
+  #   labs(x = "tau")+
+  #   labs(
+  #     title = paste0( str_wrap("Distribution of tau in the simulated data", width = 40 + sqrt(simulation_params$number_events)) ),
+  #     subtitle = " " 
+  #   )+
+  #   xlim(0,1) +
+  #   stat_bin( geom="text", aes(label = ifelse(..count.. > 0, ..count.., "")), vjust=-1) +
+  #   stat_bin(geom = "text", aes(label = ifelse(..count.. > 0, paste0("bold(", sprintf("%.2f", ..x..), ")"), "")), vjust=2, parse = TRUE)  +
+  #   geom_hline(data = hist_data, aes(yintercept = n), linetype = "dashed", color = "grey")
   
     
 
@@ -382,12 +381,12 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-
+#justify why I am using the median of tau
 plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
-    
-    accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k? 
 
-    #prepare data as for the MAE computation 
+    accepted_mutations = readRDS("results/accepted_mutations.rds") # Adjust input as needed
+    
+    # Prepare data as for the MAE computation 
     names_tau <- paste("tau[", 1:K, "]", sep = "")
     tau_inferred <- res$draws(names_tau, format = "matrix")
     tau_inferred_median <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
@@ -402,13 +401,13 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
 
         names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  
         weights_inferred <- res$draws(names_weights, format = "matrix")
-        weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
+        weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist()
 
         tau_index_assigned <- which.max(weights_inferred_median)
         identity_matrix_RI <- c(identity_matrix_RI, tau_index_assigned)
     }
 
-    # Prepare the data for ggplot: Ensure that all segments are visible
+    # Prepare the data for ggplot
     segments <- unique(accepted_mutations$segment_id)
     plot_data <- data.frame(
         segment = segments,
@@ -416,40 +415,40 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
         tau_inferred_median = tau_inferred_median[identity_matrix_RI]
     )
 
-    # Create circles around each tau assignment
-    circle_data <- data.frame(
-        tau_inferred_median = rep(tau_inferred_median, each = 100),
-        angle = rep(seq(0, 2 * pi, length.out = 100), times = K),
-        tau_index_assigned = rep(1:K, each = 100)
-    ) %>%
-    mutate(
-        x = tau_inferred_median + 0.05 * cos(angle),  # Adjust the circle radius as needed
-        y = tau_index_assigned + 0.05 * sin(angle)  # Adjust y for the circle path
+    # Prepare identity matrix data
+    identity_matrix_df <- data.frame(
+        segment = rep(segments, each = K),
+        tau_index = rep(1:K, times = length(segments)),
+        value = as.numeric(rep(identity_matrix_RI, each = K) == rep(1:K, times = length(segments))),
+        tau_inferred_median = rep(tau_inferred_median, times = length(segments))  # Correct the length mismatch
     )
 
-    # Plot using ggplot2
-    p <- ggplot() +
-        # Plot circles
-        geom_path(data = circle_data, aes(x = x, y = tau_index_assigned, group = tau_index_assigned), color = "black") +
-        # Plot points for each segment at each tau inferred
-        geom_point(data = plot_data, aes(x = tau_inferred_median, y = tau_index_assigned), size = 3) +
-        # Add text labels for each segment with a white background
-        geom_label(data = plot_data, aes(x = tau_inferred_median, y = tau_index_assigned, label = segment),
-                   fill = "white", color = "black", label.padding = unit(0.1, "lines"), size = 3) +
-        # Customize axes with tau values directly
-        scale_x_continuous(breaks = tau_inferred_median, labels = round(tau_inferred_median, 2)) +
-        labs(x = "Time (Tau Inferred Median)", y = "Assigned Tau Index") +
-        theme_minimal() +
-        # Set white background for the plot
+    # Plot identity matrix with RColorBrewer palette
+    library(RColorBrewer)
+
+    # Plot identity matrix with RColorBrewer palette
+    p <- ggplot(identity_matrix_df, aes(x = tau_index, y = segment)) +  # Change x to tau_index instead of tau_inferred_median
+        geom_tile(aes(fill = factor(value)), color = "white") +
+        scale_fill_brewer(palette = "Set1") + # Use a predefined palette
+        labs(x = "Tau Index", y = "Segment", fill = "Membership") +
+        theme_minimal(base_size = 14) +
         theme(
-            panel.background = element_rect(fill = "white", color = NA),
-            plot.background = element_rect(fill = "white", color = NA),
-            panel.grid = element_blank()
-        )
+            panel.background = element_rect(fill = "white"),
+            plot.background = element_rect(fill = "white"),
+            legend.background = element_rect(fill = "white"),
+            legend.box.background = element_rect(fill = "white"),
+            axis.text.x = element_text(size = 12, angle = 0, color = "black"),
+            axis.text.y = element_text(size = 12, color = "black"),
+            axis.ticks = element_line(color = "grey70"),
+            panel.grid.major = element_line(color = "grey90"),
+            panel.grid.minor = element_blank(),
+            plot.title = element_text(color = "black"),
+            plot.subtitle = element_text(color = "black")
+        ) +
+        scale_x_continuous(breaks = 1:K)  # Set x-axis to tau indices
 
-    return(p)  # Return the ggplot object
+    return(p) # Return the ggplot object
 }
-
 
 
 
@@ -541,6 +540,30 @@ log_lik_plot <- ggplot(data = model_selection, aes(x = K, y = Log_lik)) +
           axis.title.y = element_text(margin = margin(r = 10)),
           plot.margin = margin(5, 20, 5, 5))
 
+
+
+# ICL plot
+ICL_plot <- ggplot(data = model_selection, aes(x = K, y = ICL)) + 
+    geom_line(aes(colour = "ICL Line"), size = 1) + 
+    geom_point(aes(colour = "ICL Point"), size = 3) +
+    geom_point(aes(x = best_K, y = ICL[K == best_K], colour = "Best K Point"), size = 4) +
+    geom_point(aes(x = K[ICL == min(ICL)], y = min(ICL), colour = "Minimum Point"), size = 4) +
+    scale_colour_manual(name = "Legend",
+                        values = c("ICL Line" = "steelblue", 
+                                   "ICL Point" = "steelblue", 
+                                   "Best K Point" = "firebrick",
+                                   "Minimum Point" = "forestgreen")) +
+    theme_minimal(base_size = 15) +  # Tema minimalista
+    theme(legend.position = "top",  # Sposta la legenda sopra il grafico
+          legend.title = element_blank(),  # Rimuove il titolo della legenda
+          panel.grid.minor = element_blank(),  # Rimuove le griglie minori
+          panel.grid.major.x = element_blank(),  # Rimuove le griglie verticali
+          axis.title.x = element_text(margin = margin(t = 10)),  # Spazio per l'asse X
+          axis.title.y = element_text(margin = margin(r = 10)),
+          plot.margin = margin(5, 20, 5, 5))  # Spazio per l'asse Y
+
+
+
 # Update the BIC plot
 bic_plot <- bic_plot +
   scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
@@ -557,6 +580,11 @@ loo_plot <- loo_plot +
 log_lik_plot <- log_lik_plot +
   scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
   geom_label(aes(label = round(Log_lik, 2)), nudge_y = -0.01, size = 3, fill = "white", color = "black") 
+# Update the ICL plot
+ICL_plot <- ICL_plot +
+  scale_x_continuous(breaks = seq(min(model_selection$K), max(model_selection$K), by = 1)) +
+  geom_label(aes(label = round(ICL, 2)), nudge_y = -10, size = 3, fill = "white", color = "black") 
+
 
   
   S <- length(unique(results$accepted_mutations$segment_id))
@@ -573,7 +601,7 @@ log_lik_plot <- log_lik_plot +
   
 
 # Combinazione dei grafici con layout e annotazioni
-model_selection_plot <- (bic_plot | aic_plot) / (loo_plot | log_lik_plot) +
+model_selection_plot <- (bic_plot | aic_plot) / (loo_plot | log_lik_plot) /(ICL_plot) +
   plot_annotation(
     title = "Model Selection Graphs: Score vs Number of Clusters",
     subtitle = paste0("Correspondence between number of clusters and number of parameters: \n", Subtitle),
