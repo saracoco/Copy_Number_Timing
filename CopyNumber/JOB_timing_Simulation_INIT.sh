@@ -3,7 +3,7 @@
 #SBATCH --no-requeue
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=24
-#SBATCH --time=10:00:00
+#SBATCH --time=15:00:00
 #SBATCH --partition=THIN
 #SBATCH --mem=400gb
 #SBATCH --output=simulate.out

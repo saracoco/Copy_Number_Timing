@@ -14,7 +14,7 @@ data {
 
 
 parameters {
-  array[S] simplex[K] w;              // simplex[K] w[N] mixing proportions for each segment group;
+  array[S] simplex[K] w;              // simplex[K] w[N] mixing proportions for each segment group; check prior should be more on the higher values
   vector<lower=0,upper=1>[K] tau;     //clocks   ordered[K] tau  vector<lower=0,upper=1>[K]
   //vector[K] alpha;
   simplex[K] phi;
@@ -38,8 +38,10 @@ transformed parameters{
       }
     }
   }
+  // print("transformed_param: ", theta);  // Print statement
 
   vector[K] alpha = kappa * phi;
+
 
 }
 
@@ -49,7 +51,7 @@ model {
   vector[K*2] contributions;
 
   // priors
-
+                                          // forse ho sbagliato dovrei fissare phi e kappa, non voglio inferirli giusto?
                                           // alpha 
   phi ~ dirichlet(rep_vector(1.0, K));;
   kappa ~ gamma(2, 0.5);                  // strictly positive with a long right tail.
@@ -64,6 +66,7 @@ model {
   }
   
 
+  // print("phi: ", phi, ", kappa: ", kappa, ", w: ", w, ", tau: ", tau);  // Print statement in model block
 
 
   //likelihood
@@ -89,6 +92,7 @@ generated quantities {
   array[N] int comp_binomial;               // Binomial component identifier
   vector[N] NV_pred;                        // Predicted NV
   vector[2] theta_vector;
+  array[N] vector[K*2] log_lik_matrix;
   
   vector[N] log_lik;                        // log-likelihood for each data point
   for (i in 1:N) {
@@ -101,8 +105,10 @@ generated quantities {
       }
     }
     log_lik[i] = log_sum_exp(contributions);
+    log_lik_matrix[i] = contributions;
+
     
-    // Generate quantities for posterior predictive checks
+    // Generate quantities for posterior predictive checks and for responsibilities
     comp_tau[i] = categorical_rng(w[seg_assignment[i]]);
     theta_vector = to_vector(theta[seg_assignment[i], comp_tau[i]]);
     comp_binomial[i] = categorical_rng(theta_vector);
