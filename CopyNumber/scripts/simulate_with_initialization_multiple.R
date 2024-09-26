@@ -14,13 +14,13 @@ library(ppclust)
 #setwd("C:/Users/sarac/CDS_git/Copy-Number-Timing/CopyNumber/")
 #orfeo
 
-sim_list = c(6,7,8,9,10,11,12,13,14,15)
+sim_list = c(1,6,7,8,9,10,11,12,13,14,15)
 #1,
-number_clocks_list = c(2,2,2,3,3,3,3,4,4,4)
+number_clocks_list = c(3,2,2,2,3,3,3,3,4,4,4)
 # 1,
-number_events_list = c(10,20,30,6,10,20,30,10,20,30)
+number_events_list = c(10,10,20,30,6,10,20,30,10,20,30)
 # 4,
-epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
+epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
 # 0.20,
 for (i in (1:length(sim_list))) {
 

@@ -6,10 +6,10 @@ Mode <- function(x) {
   ux <- unique(x)
   ux[which.max(tabulate(match(x, ux)))]
 }
-dir_names = paste0("../",1:12)
-dir_names_INIT = paste0("../",1:12,"_INIT")
+dir_names = paste0("../",1:10)
+# dir_names_INIT = paste0("../..",1:10,"_INIT")
 
-names = paste0(1:12)
+names <- paste0(setdiff(1:10, 6))
 # list of average score (among the 20 repetitions of the same simulation type) 
 # of the model choosen as best with model selection
 my_list <- list(simulation = names,
@@ -23,7 +23,7 @@ my_list <- list(simulation = names,
 original_dir=getwd()
 # for loop on simulations
 for (i in dir_names) {
-
+    if (i != "../6"){
     setwd(i)
     print(i)
     simulation_directory=getwd()
@@ -44,6 +44,7 @@ for (i in dir_names) {
     # for loop on iteration of simulation
     for (i in 1:(directories_number-1)){ 
 
+        
         setwd(paste0("simulation_iteration_",i,"/results"))
         single_directory = getwd()
         # sapply(BiblioDir,function(dir){length(list.files(dir,pattern='pdf'))})
@@ -98,12 +99,13 @@ for (i in dir_names) {
     my_list$Is_K_best_equal_K_real = c(my_list$Is_K_best_equal_K_real, Mode(Is_K_best_equal_K_real_list) )
 
     setwd(original_dir)
+    }
 }
 
 
-saveRDS(my_list, "score_list.rds")
+saveRDS(my_list, "my_score_list.rds")
 
-score_list = readRDS("score_list.rds")
+score_list = readRDS("my_score_list.rds")
 print(score_list)
 
 df_score_list = data.frame(score_list)

@@ -22,7 +22,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
   
   if (INIT==TRUE){
-    tau_single_inference <- fit_single_segments(all_sim, purity=purity)
+    #tau_single_inference <- fit_single_segments(all_sim, purity=purity)
   }
 
 
@@ -43,7 +43,9 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
     input_data <- prepare_input_data(all_sim, karyo, K, purity)
 
     if (INIT==TRUE){
-      inits_chain <- get_init(tau_single_inference, K)
+      accepted_mutations = readRDS("results/accepted_mutations.rds")
+      # inits_chain <- get_init(tau_single_inference, K)
+      inits_chain <- get_init_simpler(accepted_mutations, K)
       print(paste0("These are the values used for initializing the model ", inits_chain))
 
       res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE)
@@ -466,7 +468,9 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
    
     
    if (INIT==TRUE){
-     inits_chain <- get_init(tau_single_inference, best_K)
+    accepted_mutations = readRDS("results/accepted_mutations.rds")
+    inits_chain <- get_init_simpler(accepted_mutations, best_K)
+    #  inits_chain <- get_init(tau_single_inference, best_K)
      print(paste0("These are the values used for initializing the model ",inits_chain))
      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT=TRUE)
    } else {
@@ -738,6 +742,155 @@ get_init = function(data, K, phi=c(), kappa=5){
 
   return(inits_chain)
 }
+
+
+
+
+
+
+#' get_init_simpler
+#'
+#' Perform cmeans on the "single inference" result and retrieve the centroids and u matrix to be used as initialization parameteres
+#' @param K number of clusters
+#' @param data dataframe of points to be clustered
+#' @param phi parameters of reparametrization initialized uninformatively
+#' @param kappa parameters of reparametrization
+#' @keywords cluster
+#' @export
+#' @examples
+#' get_init()
+
+#take as input the data ready to be used for inference
+get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5){
+
+    accepted_mutations <- accepted_mutations[order(accepted_mutations$segment_index), ]
+
+      karyotype <- accepted_mutations %>%
+      group_by(segment_index) %>%
+      summarise(karyotype = first(karyotype)) %>%
+      pull(karyotype)
+
+      seg <- accepted_mutations %>%
+      group_by(segment_index) %>%
+      summarise(karyotype = first(karyotype)) %>%
+      pull(segment_index)
+
+      peaks <- matrix(0, nrow = length(karyotype), ncol = 2)
+      for (i in 1:length(karyotype)) {
+        peaks[i,] <- get_clonal_peaks(karyotype[i], purity)
+      }
+
+
+      alpha = 0.05
+      min_mutations_number = 2
+      
+      if (nrow(accepted_mutations) > 0) {
+        # Check if mutation is inside CI
+        probs <- c(alpha/2, 1 - alpha/2)
+        
+        DP <- accepted_mutations$DP
+        NV <- accepted_mutations$NV
+        
+        
+        alpha_beta_all <- lapply(1:length(DP), function(i) {
+          for (j in unique(accepted_mutations$segment_index)) {
+              if (accepted_mutations$segment_index[i]==j){
+              quantiles_1 <- qbinom(probs, DP[i], peaks[j,1])
+              quantiles_2 <- qbinom(probs, DP[i], peaks[j,2])
+            if ((NV[i] >= quantiles_1[1]) && (NV[i] <= quantiles_1[2])) {
+                return("omega1")
+            }else if ((NV[i] >= quantiles_2[1]) && (NV[i] <= quantiles_2[2])){
+                return("omega2")
+            }
+            }
+          }
+        }) %>% unlist()
+    
+
+
+    df <- data.frame(alpha_beta_all = alpha_beta_all, segment_id = accepted_mutations$segment_index, karyotype = accepted_mutations$karyotype)
+    # Group by segment_id and calculate the proportions of alpha and beta
+    proportions <- df %>%
+      group_by(segment_id, karyotype) %>%
+      summarise(
+        proportion_alpha = mean(alpha_beta_all == "omega1"),
+        proportion_beta = mean(alpha_beta_all == "omega2"),
+        .groups = 'drop'
+      )
+
+  
+
+  myReps <- function(x, y, n) rep(x, (x %in% y) * (n-1) +1)
+  phi = myReps(1/K, 1/K, K)
+
+
+  # 1) calcolo prima i tau e poi clusterizzo (perché dipendono dal karyotypo)
+  # Initialize the tau_posterior column
+  proportions$tau_posterior <- NA  # Create an empty column in the dataframe
+
+  # Loop through each row to calculate tau_posterior
+  for (i in 1:nrow(proportions)) {
+    if (proportions$karyotype[i] == '2:1') {
+      proportions$tau_posterior[i] <- 3 * proportions$proportion_beta[i] / 
+                                      (2 * proportions$proportion_beta[i] + proportions$proportion_alpha[i])
+    } else {
+      proportions$tau_posterior[i] <- 2 * proportions$proportion_beta[i] / 
+                                      (2 * proportions$proportion_beta[i] + proportions$proportion_alpha[i])
+    }
+  }
+
+  # Check if tau_posterior contains any NA values
+  if (any(is.na(proportions$tau_posterior))) {
+    stop("tau_posterior contains NA values, check the loop calculations.")
+  }
+
+  # Apply fuzzy c-means clustering
+  res.fcm <- fcm(as.matrix(proportions$tau_posterior), centers = K)
+
+  init_taus <- c(res.fcm$v)
+  init_taus[init_taus >= 1] <- 0.99  # Check for elements greater than 1 and replace them with 1 otherwise fit fails
+  init_taus[init_taus == 0] <- 0.01   
+  init_w <- as.matrix(res.fcm$u)
+  epsilon <- 1e-4
+  perturbed_probabilities <- init_w + epsilon
+
+  # Rinormalizza i pesi lungo l'asse 1 (per riga)
+  normalized_probabilities <- (apply(perturbed_probabilities, 1, function(x) x / sum(x)))
+  # Verifica che i pesi siano stati rinormalizzati correttamente
+  #print(rowSums(normalized_probabilities))
+  # Stampa i pesi normalizzati
+  init_w <- (normalized_probabilities)
+  if (K==1){
+    init_w = t(init_w)
+  }
+
+  inits_chain <- list(w = t(init_w), tau = init_taus, phi=phi, kappa=kappa)
+
+  cat(paste0("w = ",inits_chain$w,"\n "))
+  cat(paste0("tau = ", inits_chain$tau, "\n "))
+  cat(paste0("phi = ", inits_chain$phi, "\n "))
+  cat(paste0("kappa = ", inits_chain$kappa))
+
+
+  return(inits_chain)
+}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
