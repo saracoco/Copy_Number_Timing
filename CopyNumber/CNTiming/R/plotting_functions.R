@@ -642,7 +642,7 @@ plotting_elbo <- function(K){
   for (k in 1:K){
         elbo_vs_iter[[k]] <- readRDS(paste0("./elbo_vs_iterations_",k,".rds"))+
                     labs(
-                      title =  str_wrap( paste0("Elbo VS iterations with ",k," components"), width = 8 + K)
+                      title =  str_wrap( paste0("Elbo VS iterations with ",k," components"), width = 30 + K)
                     )
   }
   elbo_vs_iter_plot <- gridExtra::grid.arrange(grobs = elbo_vs_iter, ncol=K) #add global title

@@ -115,18 +115,29 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
           res_entropy = 0
           post = w_ICL
-          for (k in post ){
+          print(paste0("w_ICL ",w_ICL))
+          print(paste0("post ",post))
+          for (k in 1:K ){
             post_k = post[k]
+        
+            print(paste0("post_k ",post_k))
+
             log_post_k = log(post_k + 0.000001)
             post_k_entr = post_k * log_post_k * mut_per_seg
+            print(paste0("post_k_entr ",post_k_entr))
+
             post_k_entr = sum(post_k_entr)
             post_k_entr = -1 * (post_k_entr)
+            print(paste0("post_k_entr last step ",post_k_entr))
+            
             res_entropy = res_entropy + post_k_entr
+            print(paste0("res_entropy last step ",res_entropy))
+
           }
           entropy = res_entropy
     
           ICL = BIC + entropy
-          print(paste0("entropy",entropy))
+          print(paste0("entropy ",entropy))
 
 
           #LOO

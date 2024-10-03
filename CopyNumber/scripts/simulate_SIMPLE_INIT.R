@@ -137,28 +137,31 @@ for (i in (1:length(sim_list))) {
 
       simulation_data_plot = simulation_data_all_segments %>% mutate (tau = round(tau, 2))
       plot_data <- simulation_data_plot %>% 
-        ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
-        geom_histogram(alpha = .5, position = "identity") +
+        geom_histogram(alpha = 0.6, position = "identity", color = "black") + # Add a black border to bars
         labs(
+          x = "VAF",
+          y = "Count",
           title = "Distribution on the VAF for each segment in the simulated data",
           subtitle = paste0(Subtitle_short)
         )+
         facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
         theme_minimal() +
         theme(
-        panel.background = element_rect(fill = "white", color = NA),  # White panel background
-        plot.background = element_rect(fill = "white", color = NA),   # White plot background
-        strip.background = element_rect(fill = "white", color = NA),  # White strip background
-        strip.placement = "outside",   # Place facet labels outside
-        axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
-        axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
-        panel.spacing = unit(1, "lines"),  # Adjust space between facets
-        strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
-        axis.line = element_line(color = "black"),  # Black axis lines
-        axis.title.x = element_text(color = "black"),  # Black x-axis title
-        axis.title.y = element_text(color = "black")   # Black y-axis title
-      )+
-       xlim(0, 1)
+          panel.background = element_rect(fill = "white", color = NA),  
+          plot.background = element_rect(fill = "white", color = NA),   
+          strip.background = element_rect(fill = "white", color = NA),  
+          strip.placement = "outside",   
+          axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  
+          axis.ticks.x = element_line(color = "black"),  
+          panel.grid.major = element_line(color = "grey90"), # Subtle grid lines
+          panel.spacing = unit(1, "lines"),  
+          strip.text.x = element_text(size = 10, color = "black"),  
+          axis.line = element_line(color = "black"),  
+          axis.title.x = element_text(color = "black", size = 12),  # Bigger font for axis titles
+          axis.title.y = element_text(color = "black", size = 12),   
+          plot.title = element_text(size = 16, face = "bold"),  # Bold title for better readability
+          plot.subtitle = element_text(size = 12, face = "italic")  # Italic subtitle
+      ) + xlim(0, 1)
 
 
       #save plot of the simulated data in which we can see each single segment VAF distribution
