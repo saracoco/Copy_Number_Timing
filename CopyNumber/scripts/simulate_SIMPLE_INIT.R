@@ -9,14 +9,16 @@ library(fossil) #RI and ARI computation
 library(gridExtra)
 library(ppclust)
 
+set.seed(133)
+
 
 
 #setwd("C:/Users/sarac/CDS_git/Copy-Number-Timing/CopyNumber/")
 #orfeo
 
-sim_list = c(1,6,7,8,9,10,11,12,13,14,15)
-number_clocks_list = c(3,2,2,2,3,3,3,3,4,4,4)
-number_events_list = c(10,10,20,30,6,10,20,30,10,20,30)
+sim_list = c(0,6,7,8,9,10,11,12,13,14,15)
+number_clocks_list = c(2,2,2,2,3,3,3,3,4,4,4)
+number_events_list = c(6,10,20,30,6,10,20,30,10,20,30)
 epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
 for (i in (1:length(sim_list))) {
 
@@ -42,7 +44,7 @@ for (i in (1:length(sim_list))) {
 
     INIT = TRUE
     epsilon = epsilon_list[i]
-    n_simulations = 5
+    n_simulations = 20
     purity = 0.99
 
     vector_karyo <- c("2:0", "2:1", "2:2")

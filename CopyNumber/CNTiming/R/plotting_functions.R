@@ -24,11 +24,11 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     pars = names,
     prob = 0.8, # 80% intervals
     prob_outer = 0.95, # 99%
-    point_est = "mean"
+    point_est = "median"
   )+
     labs(
       title = "Approximate Posterior distributions",
-      subtitle = "with mean and 80% and 95% intervals"
+      subtitle = "With median and 80% and 95% intervals"
     )+
     xlim(0, 1) # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
 
@@ -38,20 +38,20 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
   intervals_weigths_per_tau <- list()
   for (k in 1:K){
         names_weights <- paste("w[",1:simulation_params$number_events,",", k, "]", sep = "") 
-        intervals_weigths_per_tau[[k]] <- mcmc_intervals(draws, pars = names_weights, point_est = "mean", prob = 0.8, prob_outer = 0.95)+
+        intervals_weigths_per_tau[[k]] <- mcmc_intervals(draws, pars = names_weights, point_est = "median", prob = 0.8, prob_outer = 0.95)+
                     labs(
                       title =  str_wrap( paste0("Posterior distributions of the weigths for tau ",k), width = 30 + K + sqrt(simulation_params$number_events)),
-                      subtitle = "with mean and 80% and 95% intervals"
+                      subtitle = "With median and 80% and 95% intervals"
                     )
   }
   intervals_weigths_per_tau <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
 
   
   #not using it, just need to add the general title to avoid repetitions
-  intervals <- mcmc_intervals(draws, regex_pars = c("w"), point_est = "mean", prob = 0.8, prob_outer = 0.95)+
+  intervals <- mcmc_intervals(draws, regex_pars = c("w"), point_est = "median", prob = 0.8, prob_outer = 0.95)+
     labs(
       title = "Posterior distributions of the weigths for each tau inferred",
-      subtitle = "with mean and 80% and 95% intervals"
+      subtitle = "With median and 80% and 95% intervals"
     )
   #
 
@@ -315,7 +315,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
     
     names_tau <- paste("tau[", 1:K, "]", sep = "")
     tau_inferred <- res$draws(names_tau, format = "matrix")
-    tau_inferred_median <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
+    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {mode(tau_inferred[,i])} ) %>% unlist() 
 
     all_differences = c()
     identity_matrix_RI = c()
@@ -330,7 +330,7 @@ plotting <- function(res, input_data, all_sim, K, simulation_params){
         weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
 
         tau_index_assigned <- which.max(weights_inferred_median)
-        tau_inferred_assigned =  tau_inferred_median[which.max(weights_inferred_median)]
+        tau_inferred_assigned =  tau_inferred_map[which.max(weights_inferred_median)]
 
         difference <- abs(tau_inferred_assigned - tau_original) # MAE - meglio MSE?
         all_differences <- c(all_differences, difference)
@@ -389,7 +389,7 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
     # Prepare data as for the MAE computation 
     names_tau <- paste("tau[", 1:K, "]", sep = "")
     tau_inferred <- res$draws(names_tau, format = "matrix")
-    tau_inferred_median <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
+    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {mode(tau_inferred[,i])} ) %>% unlist() 
 
     identity_matrix_RI = c()
 
@@ -401,9 +401,9 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
 
         names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  
         weights_inferred <- res$draws(names_weights, format = "matrix")
-        weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist()
+        weights_inferred_map <- lapply(1:ncol(weights_inferred), function(i) {mode(weights_inferred[,i])} ) %>% unlist()
 
-        tau_index_assigned <- which.max(weights_inferred_median)
+        tau_index_assigned <- which.max(weights_inferred_map)
         identity_matrix_RI <- c(identity_matrix_RI, tau_index_assigned)
     }
 
@@ -412,7 +412,7 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
     plot_data <- data.frame(
         segment = segments,
         tau_index_assigned = identity_matrix_RI,
-        tau_inferred_median = tau_inferred_median[identity_matrix_RI]
+        tau_inferred_map = tau_inferred_map[identity_matrix_RI]
     )
 
     # Prepare identity matrix data
@@ -420,14 +420,14 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
         segment = rep(segments, each = K),
         tau_index = rep(1:K, times = length(segments)),
         value = as.numeric(rep(identity_matrix_RI, each = K) == rep(1:K, times = length(segments))),
-        tau_inferred_median = rep(tau_inferred_median, times = length(segments))  # Correct the length mismatch
+        tau_inferred_map = rep(tau_inferred_map, times = length(segments))  # Correct the length mismatch
     )
 
     # Plot identity matrix with RColorBrewer palette
     library(RColorBrewer)
 
     # Plot identity matrix with RColorBrewer palette
-    p <- ggplot(identity_matrix_df, aes(x = tau_index, y = segment)) +  # Change x to tau_index instead of tau_inferred_median
+    p <- ggplot(identity_matrix_df, aes(x = tau_index, y = segment)) +  # Change x to tau_index instead of tau_inferred_map
         geom_tile(aes(fill = factor(value)), color = "white") +
         scale_fill_brewer(palette = "Set1") + # Use a predefined palette
         labs(x = "Tau Index", y = "Segment", fill = "Membership") +
@@ -630,3 +630,22 @@ model_selection_plot <- (bic_plot | aic_plot) / (loo_plot | log_lik_plot) /(ICL_
   return(model_selection_plot)
 }
 
+
+
+
+
+
+
+plotting_elbo <- function(K){
+
+  elbo_vs_iter <- list()
+  for (k in 1:K){
+        elbo_vs_iter[[k]] <- readRDS(paste0("./elbo_vs_iterations_",k,".rds"))+
+                    labs(
+                      title =  str_wrap( paste0("Elbo VS iterations with ",k," components"), width = 8 + K)
+                    )
+  }
+  elbo_vs_iter_plot <- gridExtra::grid.arrange(grobs = elbo_vs_iter, ncol=K) #add global title
+  return(elbo_vs_iter_plot)
+
+}

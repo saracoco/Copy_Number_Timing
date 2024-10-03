@@ -8,18 +8,18 @@ library(factoextra)
 library(ppclust)
 
 
-setwd("C:/Users/sarac/CDS/CopyNumber")
+setwd("C:/Users/sarac/CDS_git/Copy_Number_Timing/CopyNumber")
 source("./CNTiming/R/simulate_functions.R")
 source("./CNTiming/R/fitting_functions.R")
 source("./CNTiming/R/plotting_functions.R")
 
 
 # LOAD DATA #
-setwd("E:/scratch/CDS_ORFEO/Timing_CDS")
-UPN04_extra <- readRDS("Data/extra_cnloh/alpha_beta/UPN04/mutations.rds")
-UPN05_extra <- readRDS("Data/extra_cnloh/alpha_beta/UPN05/mutations.rds")
-UPN04_alpha_beta <- readRDS("Data/alpha_beta/UPN04/mutations.rds")
-UPN05_alpha_beta <- readRDS("Data/alpha_beta/UPN05/mutations.rds")
+setwd("E:/scratch/CDS_ORFEO/HLA")
+UPN04_extra <- readRDS("../Data/extra_cnloh/alpha_beta/UPN04/mutations.rds")
+UPN05_extra <- readRDS("../Data/extra_cnloh/alpha_beta/UPN05/mutations.rds")
+UPN04_alpha_beta <- readRDS("../Data/alpha_beta/UPN04/mutations.rds")
+UPN05_alpha_beta <- readRDS("../Data/alpha_beta/UPN05/mutations.rds")
 # FILTERING #
 UPN04_extra_NV = UPN04_extra %>% filter(timing_classification %in% c("alpha private", "beta"),PASS == TRUE)
 UPN05_extra_NV = UPN05_extra %>% filter(timing_classification  %in% c("alpha private", "beta"),chr == "chr1",PASS == TRUE)
@@ -33,7 +33,9 @@ names <- c("UPN04","UPN04_LSH")
 #names <- c("UPN05", "UPN05_LSH")
 
 
-setwd("E:/scratch/CDS_ORFEO/Timing_CDS/initialization")
+#setwd("E:/scratch/CDS_ORFEO/Timing_CDS/initialization")
+setwd("../HLA/Timing_CDS/initialization")
+
 
 
 data <- dplyr::tibble()

@@ -20,20 +20,16 @@ library(dplyr)
 
 fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=4, INIT=TRUE, simulation_params = simulation_params){
 
-  
+  set.seed(123)
   if (INIT==TRUE){
-    #tau_single_inference <- fit_single_segments(all_sim, purity=purity)
+    #tau_single_inference <- fit_single_segments(all_sim, purity=purity) # uncomment to run initialization with single segment model
   }
-
 
   #MODEL SELECTION
   model_selection_tibble <- dplyr::tibble()
-
-  
   #Regola empirica: In generale, si può considerare come massimo plausibile un numero di cluster pari a 
   # sqrt(n/2), dove n è il numero di punti dati.
   
-
   if (length(karyo) <= 15){
     k_max = (length(karyo)/2)-1
   } else { k_max = sqrt(length(karyo))  #does not converge with initialization (don't know why (ex #seg = 10 --> k_max = 5, with 5 does not converge))
@@ -41,425 +37,236 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
   
   for (K in 1:k_max) {
     input_data <- prepare_input_data(all_sim, karyo, K, purity)
+    accepted_mutations = readRDS("results/accepted_mutations.rds") #potrei prenderli direttamente da input_data quando non farò model validation
 
     if (INIT==TRUE){
-      accepted_mutations = readRDS("results/accepted_mutations.rds")
-      # inits_chain <- get_init(tau_single_inference, K)
+      # inits_chain <- get_init(tau_single_inference, K)     # uncomment to run initialization with single segment model
       inits_chain <- get_init_simpler(accepted_mutations, K)
-      print(paste0("These are the values used for initializing the model ", inits_chain))
-
+      # print(paste0("These are the values used for initializing the model ", inits_chain)) # uncomment to check for initialization problems
       res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE)
-
     } else {
       res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE)
     }
+        # Plot ELBO values over iterations
+        output_files <- res$latent_dynamics_files()
+        elbo_data <- read.csv(output_files, header = FALSE, comment.char = "#")
+        colnames(elbo_data) <- c("iter", "time_in_seconds", "ELBO")
+        iterations <- elbo_data$iter  # iteration column
+        elbo_values <- elbo_data$ELBO  # ELBO column
+        elbo_df <- data.frame(iteration = iterations, elbo = elbo_values)
+        # saveRDS(elbo_df, paste0("./elbo_df_",K,".rds"))    
 
+
+        p <- ggplot(elbo_df, aes(x = iteration, y = elbo)) +
+          geom_line(color = "blue") +
+          labs(title = "ELBO Values over Iterations",
+              x = "Iteration",
+              y = "ELBO")
+        saveRDS(p, paste0("./elbo_vs_iterations_",K,".rds"))    
+
+          ############################################
+          # SELECT THE BEST MODEL 
+          stanfit <- rstan::read_stan_csv(res$output_files())
+          S <- length(unique(accepted_mutations$segment_id))
+          total_number_params <- K+((K-1)*S)+2                    # tau = K, w = K*S, phi, kappa (dirichlet reparametrization)
+          N <- nrow(accepted_mutations)
+          
+          # mcmc_hist(fit_vb$draws("theta"))
+          # fit_vb$summary()
+
+          # Check log likelihood values 
+          lp__ <- res$draws("lp__")
+          cat (paste0(" mode of lp__ = unnormalized_log_lik = ", mode(lp__), "last value = ", lp__[100], " dimension of lp__ = ", dim(lp__),"\n"))
+          lp_approx__ <- res$draws("lp_approx__")
+          cat (paste0(" mode of lp_approx after rowSums = ", mode(rowSums(lp_approx__)), " dimension of lp_approx__ = ", dim(lp_approx__),"\n"))
+          log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE) # merge chains potrebbe non servire
+          # cat (paste0(" mode of log_lik after rosSums = likelihood from generated quantities", log_lik_matrix[1], "dimension of log_lik = ", dim(log_lik_matrix), "\n"))
+          cat (paste0(" mode of log_lik after rosSums = likelihood from generated quantities", mode(rowSums(log_lik_matrix)),"last value = ", rowSums(log_lik_matrix)[100], "dimension of log_lik = ", dim(log_lik_matrix), "\n"))
+          # lp_approx <- res$lp_approx() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
+          # lp <- res$lp() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
+          # lp__ <- as.matrix(stanfit, pars = "lp__")
+          # lp__ <- res$lp()
+
+          log_lik_total_per_sample <- rowSums(log_lik_matrix)
+          L <- mode(log_lik_total_per_sample)
+
+          BIC <- ((total_number_params * log(N)) - 2 * L) # %>% unname()
+          AIC <- 2 * total_number_params - 2 * L
+
+          # Generate names for w[sim_params_num, K] format
+          names_weights <- outer(1:simulation_params$number_events, 1:K, 
+                                FUN = function(i, j) paste0("w[", i, ",", j, "]"))
+          # Convert to a vector for easier extraction
+          draws = 1000
+          names_weights <- as.vector(names_weights)
+          w_ICL <- as.matrix(stanfit, pars = names_weights)
+          dim(w_ICL) = c(draws,S*K)
+          w_ICL <- apply(w_ICL, 2, mode) # mode over draws
+          dim(w_ICL) = c(S,K) # check by row
+          w_ICL = t(w_ICL)
+
+          num_mutations_all <- c()
+          for (i in seq_along(unique(accepted_mutations$segment_id))) {
+          segment <- unique(accepted_mutations$segment_id)[i]
+          num_mutations_single <- nrow(accepted_mutations %>% filter(segment_id == segment))
+          num_mutations_all <- c(num_mutations_all, num_mutations_single)
+          }
+          mut_per_seg = num_mutations_all
+
+          res_entropy = 0
+          post = w_ICL
+          for (k in post ){
+            post_k = post[k]
+            log_post_k = log(post_k + 0.000001)
+            post_k_entr = post_k * log_post_k * mut_per_seg
+            post_k_entr = sum(post_k_entr)
+            post_k_entr = -1 * (post_k_entr)
+            res_entropy = res_entropy + post_k_entr
+          }
+          entropy = res_entropy
     
+          ICL = BIC + entropy
+          print(paste0("entropy",entropy))
 
 
-    ############################################
-    # SELECT BEST MODEL 
-
-    accepted_mutations = readRDS("results/accepted_mutations.rds") #passo in input a fit_model_selection_best_k?
-
-    S <- length(unique(accepted_mutations$segment_id))
-    stanfit <- rstan::read_stan_csv(res$output_files())
-  
-    total_number_params <- K+(K*S)+2 # tau = K, w = K*S, phi, kappa (dirichlet reparametrization)
-    k_inferred <- total_number_params
-    N <- nrow(accepted_mutations)
-    
-    # lp_approx <- res$lp_approx() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
-    # cat (paste0(" lp_approx = median of likelihood value "))
-    # cat(mean(lp_approx),length(lp_approx))
-
-    # lp <- res$lp() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
-    # cat (paste0(" lp_approx = median of likelihood value from"))
-    # cat(mean(lp),length(lp))
-
-
-    log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE)
-    cat (paste0(" loglik = likelihood value from generated quantities"))
-    cat(mean(log_lik_matrix),dim(log_lik_matrix))
-
-
-
-
-    log_lik_total_per_sample <- rowSums(log_lik_matrix)
-    cat (paste0( "log_lik_total_per_sample = mean of likelihood value from generated quantities"))
-    cat(length(log_lik_total_per_sample))
-
-
-    L <- mean(log_lik_total_per_sample)
-    cat (paste0( "L = mean of likelihood value from generated quantities"))
-    cat(L)
-
-
+          #LOO
+          loo_result<-loo(log_lik_matrix)
+          loo_value <- loo_result$estimates[3, "Estimate"]  # LOO-CV estimate
 
-    BIC <- ((k_inferred * log(N)) - 2 * L) # %>% unname()
-    AIC <- 2 * k_inferred - 2 * L
+          #PSIS
+          # log_ratios <- -1*(extract_log_lik(stanfit))
+          # r_eff <- relative_eff(exp(-log_ratios))
+          # psis_result <- psis(log_ratios, r_eff = r_eff)
 
+          #WAIC
+          #waic_result <- waic(log_lik_matrix)
+          #waic_value <- waic_result$estimates[1, "Estimate"]# WAIC 
 
-    #WAIC
-    #waic_result <- waic(log_lik_matrix)
-    #waic_value <- waic_result$estimates[1, "Estimate"]  # WAIC estimate
 
+          model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L, ICL = ICL))
+          
 
-    #LOO
-    loo_result<-loo(log_lik_matrix)
-    loo_value <- loo_result$estimates[3, "Estimate"]  # LOO-CV estimate
-
-
-
-    #PSIS
-    # log_ratios <- -1*(extract_log_lik(stanfit))
-    # r_eff <- relative_eff(exp(-log_ratios))
-    # psis_result <- psis(log_ratios, r_eff = r_eff)
-
-
-  # ########################## TO OBTAIN RESPONSIBILITY TO CHECK NV REPLICATED ASSIGNMENT FOR BINOMIAL COMPONENT - - - UNCOMMENT PLOTS  ################
-  #   # SELECT BEST MODEL  pt 1 
-  #   accepted_mutations = readRDS("results/accepted_mutations.rds") 
-  #   S <- length(unique(accepted_mutations$segment_id))
-  #   stanfit <- rstan::read_stan_csv(res$output_files())
-  #  # OBTAIN RESPONSIBILITIES TO EVALUATE THE ICL ASSOCIATED TO THE MODEL 
-  #  ##############################
-  #   N <- nrow(accepted_mutations)
-  #   Y = accepted_mutations$NV
-  #   DP = accepted_mutations$DP
-  #   seg_assignment = accepted_mutations$segment_id
-  #   w <- as.matrix(stanfit, pars = "w")
-  #   J=2 #number of binomial mixture components
-    iterations = 1000
-  #   ###############################
-  #   Y_pred = rep.int(0,1000*N)
-  #   Y_pred = as.matrix(Y_pred)
-  #   dim(Y_pred) = c(1000,N)
-  #   # comp_binomial = as.matrix(stanfit, pars = "comp_binomial")
-  #   # print(paste0("dimension of comp_binomial ",dim(comp_binomial)))
-  #   comp_tau = as.matrix(stanfit, pars = "comp_tau")
-  #   theta = as.matrix(stanfit, pars = "theta")
-  #   responsibilities <- matrix(0, nrow=N * iterations, ncol=J)
-  #   dim(responsibilities) = c(1000, N, J)
-  #   prob_comp_binom <- matrix(0, nrow=S*iterations, ncol=J) # proportion of the binomial component per segment    
-  #   dim(prob_comp_binom) = c(1000, S, J)
-  #   ###############################
-  #   #####OBTAIN THE RESPONSIBILITIES IN ORDER TO OBTAIN THE ASSIGNMENT PER SINGLE OBSERVATION 
-  #   # obtain the marginals of theta per segment
-  #   for (iter in 1:iterations){
-  #     theta_iter = theta[iter,]
-      
-  #     dim(theta_iter) = c(S,K,2)
-      
-  #     w_iter = w[iter,]
-  #     dim(w_iter) = c(S,K)
-  #     function_sumK <- function(s, j, K, theta_iter, w_iter) {
-  #       component = numeric(K)
-  #       for (k in 1:K) {
-  #         component[k] = theta_iter[s, k, j] * w_iter[s, k]
-  #       }
-  #       return(sum(component))
-  #     }
-  #     for (s in 1:S){
-  #       prob_comp_binom[iter, s, ] <- sapply(1:J, function(j) function_sumK(s, j, K, theta_iter, w_iter))
-  #     }
-  #   }
-  #         peaks_  <- matrix(0, nrow=S, ncol=J) # proportion of the binomial component per segment 
-  #         dim(peaks_) = c(S,2)
-  #         peaks_ =  input_data$peaks
-  #         dim(peaks_) = c(S,2)
-  #         seg_ass=as.integer(input_data$seg_assignment[i])
-  #   for (iter in 1:iterations){
-  #     evaluate_responsibility <- function(prob_comp_binom, j, i, J=2, iter) {
-  #       component = numeric(J)
-
-  #       for (t in 1:J) {      
-  #         component[t] = prob_comp_binom[iter, seg_ass, t ]  * dbinom(Y[i] ,DP[i], peaks_[seg_ass, t] ) 
-  #       }
-  #       numerator = prob_comp_binom[iter,seg_ass, j ] * dbinom(Y[i] ,DP[i], peaks_[seg_ass, j]
-  #   )
-  #       denominator = sum(component)
-  #       result = numerator/(denominator)
-  #       return(result)
-  #     } 
-  #     for (i in 1:N){
-  #       responsibilities[iter,i, ] <- sapply(1:J, function(j) evaluate_responsibility(prob_comp_binom= prob_comp_binom,j=j, i=i, J=2, iter=iter))
-  #     }
-  #   }
-
-
-
-
-
-
-
-
-
-
-
-    # POSSO CANCELLARLO ########################################################################################################à
-    # print(responsibilities[1,1,1])
-    # print(responsibilities[1,1,2])
-    
-    # print(dim(responsibilities))
-
-    # Assignment to the component
-    # assignments <- apply(responsibilities, c(1, 2), which.max)
-    #print(dim(assignments))
-    #  ####################### OBTAIN THE Y_REP #######################################
-    #   repeat_checking = 50
-    #   for (iter in 1:repeat_checking){
-    #     for (i in 1:N){
-    #       results <- data.frame(point = input_data$NV, responsibilities[iter,,], assignments[iter,])
-    #       colnames(results)[-1] <- c(paste0("component", 1:J, "_prob"), "assignments")     
-    #       Y_pred[iter, i] = rbinom(1,DP[i], peaks_[seg_ass, results$assignments[i]])
-    #   }
-    #   }
-    #   ############### prepare the data y_rep to plot them ################################à
-    #   y_pred = matrix(Y_pred[repeat_checking,], nrow=repeat_checking, ncol=N)
-    #   #fast check on one iteration of the predicted simulation (in sample simulation)
-    #   y <- data.frame(point = Y)
-    #   for (i in 1:nrow(y_pred)) {
-    #     y[[paste0("Y_pred",i)]] <- Y_pred[i,]
-    #   }
-    #   y$id <- 1:nrow(y)
-    #   y <- reshape2::melt(y,  id.vars = 'id', variable.name = 'series')
-    #   y <- y %>% mutate (series = ifelse (grepl("Y_pred", series), "NV_obs", "NV_rep" )) 
+          # # prior predictive check without using fit_variational
+          #   model_stan <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
 
-    # # plot predicted vs observed NV 
-    #   intervals_compare_responsibilities <- ggplot(y[1:10000,], aes(id, value)) +
-    #   geom_point(aes(colour = series),alpha=.2) +
-    #   labs(title = "Predicted data points VS observed values",
-    #       x = "point ID",
-    #       y = "NV")
-    #   ggsave(paste0("./plots/predicted_vs_obs_responsibilities",K,".png"), limitsize = FALSE, device = png, plot=intervals_compare_responsibilities)
-    ##  ICL CALCULATION FROM LOG_LIKELIHOOD ASSOCIATED TO RESPONSIBILITIES (VEDI TEORIA)
-    
+          #   fit_prior <- model_stan$sample(
+          #       data = input_data,         # Data for prior predictive checks now the data of the simulation, is it wrong?
+          #       iter_sampling = 1000,     # Number of prior samples
+          #       chains = 4,               # Number of chains
+          #       fixed_param = TRUE        # Sample from priors only
+          #     )
 
-    # Generate names for w[sim_params_num, K] format
-    names_weights <- outer(1:simulation_params$number_events, 1:K, 
-                          FUN = function(i, j) paste0("w[", i, ",", j, "]"))
+        
+              # # AGGIUNGI PHI, K, THETA
+              # # PRIOR PLOT 
+              # draws_df <- res$draws(format = "df")  # Extract draws as a data frame
+              # print(draws_df)
+              #       # Extract all columns related to tau and w
+              # tau_columns <- grep("^tau_prior\\[", colnames(draws_df), value = TRUE)
+              # w_columns <- grep("^w_prior\\[", colnames(draws_df), value = TRUE)
 
-    # Convert to a vector for easier extraction
-    names_weights <- as.vector(names_weights)
-    w_ICL <- as.matrix(stanfit, pars = names_weights)
-    dim(w_ICL) = c(iterations,S*K)
-    w_ICL <- colMeans(w_ICL) # sum over iterations
-    dim(w_ICL) = c(S,K) # check by row
+              # # Extract the draws for tau and w
+              # tau_draws <- draws_df[, tau_columns]
+              # w_draws <- draws_df[, w_columns]
 
 
-    # average_responsibilities <- apply(responsibilities, c(2, 3), mean)
-    # Calculate log likelihood using responsibilities
-    log_lik_matrix_ICL <- extract_log_lik(stanfit, parameter_name = "log_lik_matrix", merge_chains = TRUE)
-    dim(log_lik_matrix_ICL) = c(1000,N*K*2)  
-    log_lik_matrix_ICL <- colMeans(log_lik_matrix_ICL)
-    dim(log_lik_matrix_ICL) = c(N,K*2)  
+              # tau_long <- pivot_longer(as.data.frame(tau_draws), cols = everything(), names_to = "tau_param", values_to = "tau_value")
 
 
-    print(paste0("dim of log_lik_matrix", dim(log_lik_matrix_ICL)))
-  
-    # Initialize a matrix to store the marginalized log-likelihoods (N x 2 for the two binomial components)
-    marginalized_log_lik <- matrix(0, nrow = N, ncol = K)
+              draws_matrix <- res$draws(format = "matrix")
+              color_scheme_set("teal")
 
+                #manage to get the K from the model fit directly rather than as input
+                names_tau <- paste("tau_prior[", 1:K, "]", sep = "")
 
-    for (i in 1:N) {
-      for (j in 1:K) {  # Loop over the mixture component (two binomial components)
-        # Sum over the K tau components for the j-th mixture component (binomial component)
+                areas_tau <- mcmc_areas(
+                  draws_matrix,
+                  pars = names_tau,
+                  prob = 0.8, # 80% intervals
+                  #prob_outer = 0.95, # 99%
+                  point_est = "median"
+                )+
+                  labs(
+                    title = " Prior distributions",
+                    subtitle = "with median and 80% and 95% intervals"
+                  )+
+                  xlim(0, 1) + # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
+                  theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
 
-        marginalized_log_lik[i, j] <- logSumExp(log_lik_matrix_ICL[i, seq(j, j+1)]) #as this I obtain for each mtation i the sum of the binomial components for each mixture component,
-         # now I should sum the columns that belong to the same segment and keep them ordered to then being summed
-         # to obtain it for the binomial components > seq(j, K * 2, by = 2)
-      }
-    }
+                  
+              ggsave(paste0("./plots/priors_tau_",K,".png"),  width = (8 + (simulation_params$number_events/2)), height = ( 8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_tau)
 
 
-# CAPIRE SE I PESI W[1,2] ECC SONO ORDINATI NELLO STESSO MODO IN CUI APPAIONO I SEGMENT_ID IN ACCEPTED_MUTATIONS
-# w [segmento, mixture component]
+                  # names_w <- paste("w_prior[", 1:K, "]", sep = "")
+                  intervals_weigths_per_tau <- list()
+                    for (k in 1:K){
+                          names_weights <- paste("w_prior[",1:simulation_params$number_events,",", k, "]", sep = "") 
+                          intervals_weigths_per_tau[[k]] <- mcmc_areas_ridges(draws_matrix, pars = names_weights, point_est = "median", prob = 0.8)+
+                                      labs(
+                                        title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(simulation_params$number_events)),
+                                        subtitle = "with median and 80% and 95% intervals"
+                                      ) +
+                                      theme(plot.background = element_rect(fill = "white"),text = element_text(size = 15))
 
-      # Convert marginalized_log_lik to a data frame and add segment_id
-      df_marginalized <- as.data.frame(marginalized_log_lik)
-      df_marginalized$segment_index <- accepted_mutations$segment_index
+                    }
+                    areas_w <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
 
-      # Retain the order of appearance of segment_id in accepted_mutations
-      segment_order <- accepted_mutations$segment_index %>% unique()
-      # Group by segment_id and sum columns while retaining the order of segment_id
-      result <- df_marginalized %>%
-        group_by(segment_index) %>%
-        summarise(across(everything(), sum, .names = "sum_{col}"), .groups = 'drop') %>%
-        slice(match(segment_order, segment_index))
-      # The resulting data frame has the summed columns for each segment in the original order
+        
+              ggsave(paste0("./plots/priors_w_",K,".png"),  width = (15 + (simulation_params$number_events/2)), height = (8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_w)
 
 
-     print(paste0("dim of w_ICL", dim(w_ICL)))
-     print(paste0("dim of log_lik_matrix_ICL", dim(result)))
-     #print(results)
-      print(accepted_mutations$segment_index[1])
+              # # Plot tau
+              # prior_tau <- ggplot(tau_long, aes(x = tau_value, fill = tau_param)) +
+              #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
+              #   labs(title = "Prior Distributions for tau", x = "tau", y = "Frequency") +
+              #   theme_minimal()
 
 
 
+              # # Reshape w to long format
+              # w_long <- pivot_longer(as.data.frame(w_draws), cols = everything(), names_to = "w_param", values_to = "w_value")
 
-      elementwise_product <- w_ICL * result
+              # # Separate w_param into 'segment' and 'clock'
+              # w_long <- separate(w_long, w_param, into = c("param", "segment", "clock"), sep = "\\[|,|\\]", convert = TRUE)
 
-      row_sums <- rowSums(elementwise_product)
+              # # Plot w[s,k] by segment and clock
+              # prior_w <- ggplot(w_long, aes(x = w_value, fill = interaction(segment, clock))) +
+              #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
+              #   labs(title = "Prior Distributions for w[s,k]", x = "w[s,k]", y = "Frequency") +
+              #   theme_minimal() +
+              #   facet_wrap(~ interaction(segment, clock), scales = "free")
 
-      # Step 3: Compute the mean across all segments
-      log_lik_mean <- mean(row_sums)
 
-      # Step 4: Add a penalization term (assuming penalty is proportional to K * log(N))
-      # You can define your penalty based on model complexity
-      N <- nrow(w_ICL)  # Number of segments
-      K <- ncol(w_ICL)  # Number of components
-      penalty_term <- -0.5 * K * log(N)
 
-      # Step 5: Compute the ICL by adding the penalization term
-      ICL <- log_lik_mean + penalty_term
+        
 
+          # prior_plot <- (prior_tau|prior_w )  +
+          #   plot_layout(widths = c(8), heights = c(10)) +
+          #   plot_annotation(
+          #     title = paste0("Prior Predictive Check"),
+          #     subtitle = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity)
+          #   ) & theme(text = element_text(size = 12), plot.title = element_text(size = 15), plot.subtitle = element_text(size = 12), axis.text = element_text(size = 12 ), plot.caption = element_text(size = 10 ))
+          
+          # ggsave(paste0("./plots/priors_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=prior_plot)
 
 
 
 
 
 
-    # # Now apply the responsibilities to the marginalized log-likelihoods
-    # log_lik_responsibilities <- rowSums(marginalized_log_lik * responsibilities)
-    # # Calculate the mean log-likelihood weighted by responsibilities
-    # L_responsibilities <- mean(log_lik_responsibilities)
 
-    # #ICL complexity penalty
-    # complexity_penalty <- k_inferred * log(N)
-    # ICL <- L_responsibilities - complexity_penalty
 
+          #instead of saving here save all together as soon as you can
+          saveRDS(res, paste0("results/res",K,".rds"))
+          saveRDS(input_data, paste0("results/input_data_",K,".rds"))
 
 
+          p <- plotting(res,input_data, all_sim ,K, simulation_params)
+          ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
+          
 
-
-
-    model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L, ICL = ICL))
-    
-
-
-
-
-    # # prior predictive check without using fit_variational
-    #   model_stan <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
-
-    #   fit_prior <- model_stan$sample(
-    #       data = input_data,         # Data for prior predictive checks now the data of the simulation, is it wrong?
-    #       iter_sampling = 1000,     # Number of prior samples
-    #       chains = 4,               # Number of chains
-    #       fixed_param = TRUE        # Sample from priors only
-    #     )
-
-  
-        # # AGGIUNGI PHI, K, THETA
-        # # PRIOR PLOT 
-        # draws_df <- res$draws(format = "df")  # Extract draws as a data frame
-        # print(draws_df)
-        #       # Extract all columns related to tau and w
-        # tau_columns <- grep("^tau_prior\\[", colnames(draws_df), value = TRUE)
-        # w_columns <- grep("^w_prior\\[", colnames(draws_df), value = TRUE)
-
-        # # Extract the draws for tau and w
-        # tau_draws <- draws_df[, tau_columns]
-        # w_draws <- draws_df[, w_columns]
-
-
-        # tau_long <- pivot_longer(as.data.frame(tau_draws), cols = everything(), names_to = "tau_param", values_to = "tau_value")
-
-
-        draws_matrix <- res$draws(format = "matrix")
-        color_scheme_set("teal")
-
-          #manage to get the K from the model fit directly rather than as input
-          names_tau <- paste("tau_prior[", 1:K, "]", sep = "")
-
-          areas_tau <- mcmc_areas(
-            draws_matrix,
-            pars = names_tau,
-            prob = 0.8, # 80% intervals
-            #prob_outer = 0.95, # 99%
-            point_est = "mean"
-          )+
-            labs(
-              title = " Prior distributions",
-              subtitle = "with mean and 80% and 95% intervals"
-            )+
-            xlim(0, 1) + # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
-            theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
-
-            
-         ggsave(paste0("./plots/priors_tau_",K,".png"),  width = (8 + (simulation_params$number_events/2)), height = ( 8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_tau)
-
-
-            # names_w <- paste("w_prior[", 1:K, "]", sep = "")
-            intervals_weigths_per_tau <- list()
-              for (k in 1:K){
-                    names_weights <- paste("w_prior[",1:simulation_params$number_events,",", k, "]", sep = "") 
-                    intervals_weigths_per_tau[[k]] <- mcmc_areas_ridges(draws_matrix, pars = names_weights, point_est = "mean", prob = 0.8)+
-                                labs(
-                                  title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(simulation_params$number_events)),
-                                  subtitle = "with mean and 80% and 95% intervals"
-                                ) +
-                                theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
-
-              }
-              areas_w <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
-
-  
-         ggsave(paste0("./plots/priors_w_",K,".png"),  width = (15 + (simulation_params$number_events/2)), height = (8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_w)
-
-
-        # # Plot tau
-        # prior_tau <- ggplot(tau_long, aes(x = tau_value, fill = tau_param)) +
-        #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
-        #   labs(title = "Prior Distributions for tau", x = "tau", y = "Frequency") +
-        #   theme_minimal()
-
-
-
-        # # Reshape w to long format
-        # w_long <- pivot_longer(as.data.frame(w_draws), cols = everything(), names_to = "w_param", values_to = "w_value")
-
-        # # Separate w_param into 'segment' and 'clock'
-        # w_long <- separate(w_long, w_param, into = c("param", "segment", "clock"), sep = "\\[|,|\\]", convert = TRUE)
-
-        # # Plot w[s,k] by segment and clock
-        # prior_w <- ggplot(w_long, aes(x = w_value, fill = interaction(segment, clock))) +
-        #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
-        #   labs(title = "Prior Distributions for w[s,k]", x = "w[s,k]", y = "Frequency") +
-        #   theme_minimal() +
-        #   facet_wrap(~ interaction(segment, clock), scales = "free")
-
-
-
-  
-
-    # prior_plot <- (prior_tau|prior_w )  +
-    #   plot_layout(widths = c(8), heights = c(10)) +
-    #   plot_annotation(
-    #     title = paste0("Prior Predictive Check"),
-    #     subtitle = paste0("Simulation with ", simulation_params$number_clocks," clocks, ", simulation_params$number_events, " segments, epsilon = ", simulation_params$epsilon, " purity = ", simulation_params$purity)
-    #   ) & theme(text = element_text(size = 12), plot.title = element_text(size = 15), plot.subtitle = element_text(size = 12), axis.text = element_text(size = 12 ), plot.caption = element_text(size = 10 ))
-    
-    # ggsave(paste0("./plots/priors_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=prior_plot)
-
-
-
-
-
-
-
-
-    #instead of saving here save all together as soon as you can
-    saveRDS(res, paste0("results/res",K,".rds"))
-    saveRDS(input_data, paste0("results/input_data_",K,".rds"))
-    
-    p <- plotting(res,input_data, all_sim ,K, simulation_params)
-    ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
-    
-
-    plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
-    ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
+          plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
+          ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
 
   }
   
@@ -482,6 +289,10 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
    p_best_K <- plotting(res,input_data, all_sim, best_K, simulation_params)
    ggsave(paste0("./plots/plot_inference_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
    
+   p_elbo_iter <- plotting_elbo(k_max)
+   ggsave(paste0("./elbo_vs_iterations_.png"), plot = p_elbo_iter)
+
+
   return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations
 ))
 
@@ -510,9 +321,8 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 library(cmdstanr)
 
 #fit variational taking the best run 
-fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 10000, grad_samples = 1, elbo_samples = 100) {
-  # retry = failure
-  # attempts = best elbo
+fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 10000, grad_samples = 10, elbo_samples = 100) {
+  # Load the Stan model
   model <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
   best_elbo <- -Inf  # Start with the worst possible ELBO
   best_fit <- NULL  # To store the best model fit
@@ -521,36 +331,63 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
   for (attempt in 1:max_attempts) {
     message("Attempt ", attempt, " of ", max_attempts)
     
-    # Initialize the number of retries for the current attempt
-    retries <- 0
-    fit_successful <- FALSE
+    # retries <- 0  # Initialize retries for each attempt
+    fit_successful <- FALSE  # Reset success flag for each attempt
     iter <- initial_iter  # Reset iterations for each new attempt
     
+    retries <- 0
+
     while (!fit_successful && retries < 3) {  # Set a max number of retries for each attempt
-      message("Running inference, retry ", retries + 1)
+
+      # message("Running inference, retry ", retries + 1)
+
+      # Increment total_attempts at the start of each retry
+      total_attempts <- total_attempts + 1
+      retries <- retries + 1
 
       result <- tryCatch({
+        # Attempt variational inference
+        # jacobian: the default is FALSE, meaning optimization yields the (regularized) maximum likelihood estimate. 
+        # Setting it to TRUE yields the maximum a posteriori estimate.
         if (INIT == TRUE) {
           res <- model$variational(
             data = input_data, 
             init = list(initialization),  # Use the provided initialization
             iter = iter, 
             grad_samples = grad_samples, 
-            elbo_samples = elbo_samples
+            elbo_samples = elbo_samples,
+            save_latent_dynamics = TRUE,
+            draws = 1000,
+            # output_dir = "./",
+            eval_elbo = 1,
+            tol_rel_obj = 0.0001
           )
+          print(res$init())
+
         } else {
           res <- model$variational(
             data = input_data, 
             iter = iter, 
             grad_samples = grad_samples, 
-            elbo_samples = elbo_samples
+            elbo_samples = elbo_samples,
+            save_latent_dynamics = TRUE,
+            draws = 1000,
+            # output_dir = "./",
+            eval_elbo = 1,
+            tol_rel_obj = 0.0001
           )
         }
-        
-        # Check if ELBO is available in the results and extract it
-        elbo_summary <- res$summary(variables = "lp__")
-        elbo <- max(elbo_summary$mean)  # Extract the highest ELBO
-        
+
+
+        # print(res$metadata())
+        # print(res$cmdstan_summary()
+
+
+        output_files <- res$latent_dynamics_files()
+        elbo_data <- read.csv(output_files, header = FALSE, comment.char = "#")
+        colnames(elbo_data) <- c("iter", "time_in_seconds", "ELBO")
+        elbo_values <- elbo_data$ELBO  # The ELBO column
+        elbo <- elbo_values[length(elbo_data)]
         # Update the best model if this ELBO is better
         if (!is.na(elbo) && elbo > best_elbo) {
           best_elbo <- elbo
@@ -558,32 +395,42 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
         }
 
         message("ELBO for this run: ", elbo)
+
+        # Check for invalid log evaluations
+        output_files <- res$output_files()
+        if (length(output_files) > 0) {
+          invalid_log_output <- readLines(output_files[1])
+          invalid_log_lines <- grep("Invalid", invalid_log_output, value = TRUE)
+          if (length(invalid_log_lines) > 0) {
+            message("Invalid log evaluations found:\n", paste(invalid_log_lines, collapse = "\n"))
+          }
+        }
+        
         fit_successful <- TRUE  # Mark this fit as successful
         
       }, error = function(e) {
         message("An error occurred during inference: ", e$message)
-        retries <- retries + 1  # Increment retry count
-        return(NULL)
+        # retries <- retries + 1  # Increment retry count
+        fit_successful <- FALSE  # Mark fit as unsuccessful
+        NULL  # Ensure NULL is returned so loop can continue
       })
       
-      total_attempts <- total_attempts + 1  # Count total attempts regardless of success
+      # No return from `tryCatch` - just continue the loop if not successful
     }
-    
+
     if (retries == 3) {
       message("Max retries reached for attempt ", attempt)
     }
   }
   
   if (!is.null(best_fit)) {
-    message("Best ELBO after ", total_attempts, " attempts: ", best_elbo)
+    # message("Best ELBO after ", total_attempts, " attempts: ", best_elbo)
     return(best_fit)  # Return the result with the best ELBO
   } else {
     message("Inference could not be completed successfully.")
     return(NULL)  # Return NULL if no fit was successful
   }
 }
-
-
 
 
 #' prepare_input_data Function
@@ -848,11 +695,16 @@ get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5){
   res.fcm <- fcm(as.matrix(proportions$tau_posterior), centers = K)
 
   init_taus <- c(res.fcm$v)
-  init_taus[init_taus >= 1] <- 0.99  # Check for elements greater than 1 and replace them with 1 otherwise fit fails
-  init_taus[init_taus == 0] <- 0.01   
+  init_taus[init_taus >= 0.88] <- 0.88  # Check for elements greater than 1 and replace them with 1 otherwise fit fails
+  init_taus[init_taus == 0] <- 0.07   
   init_w <- as.matrix(res.fcm$u)
   epsilon <- 1e-4
-  perturbed_probabilities <- init_w + epsilon
+  if (all(init_w > 0.5) ){
+    perturbed_probabilities <- init_w - epsilon
+  } else {
+    perturbed_probabilities <- init_w + epsilon
+  }
+  
 
   # Rinormalizza i pesi lungo l'asse 1 (per riga)
   normalized_probabilities <- (apply(perturbed_probabilities, 1, function(x) x / sum(x)))
@@ -1096,4 +948,13 @@ get_tau_posteriors = function(fit, k) {
   tau_posteriors <- dplyr::tibble(tau = tau_posterior)
   tau_posteriors
 }
+
+
+
+
+mode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
 

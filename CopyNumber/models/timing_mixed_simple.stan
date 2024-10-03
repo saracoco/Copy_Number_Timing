@@ -15,13 +15,30 @@ data {
 
 parameters {
   array[S] simplex[K] w;              // simplex[K] w[N] mixing proportions for each segment group; check prior should be more on the higher values
-  vector<lower=0,upper=1>[K] tau;     //clocks   ordered[K] tau  vector<lower=0,upper=1>[K]
+  vector<lower=0.0001,upper=0.999>[K] tau;     //clocks   ordered[K] tau  vector<lower=0,upper=1>[K]
   //vector[K] alpha;
   simplex[K] phi;
   real<lower=0> kappa;
 }
 
 transformed parameters{
+
+  array[S] vector[K] perturbed_w;  // Pesi perturbati e rinormalizzati
+  real<lower=0> epsilon;
+  epsilon = 0.01;
+  for (s in 1:S) {
+    for (k in 1:K) {
+      if (w[s][k] > 0.5) {
+        perturbed_w[s][k] = w[s][k] - epsilon;
+      } else {
+        perturbed_w[s][k] = w[s][k] + epsilon;
+      }
+    }
+    
+    // Rinormalizza i pesi
+    perturbed_w[s] = perturbed_w[s] / sum(perturbed_w[s]);
+  }
+
 
   array[S,K,2] real<lower=0,upper=1> theta; //binomial mixing proportions // array[S,K] simplex[2] theta;
 
@@ -48,7 +65,8 @@ transformed parameters{
 
 
 model {
-  vector[K*2] contributions;
+  vector[K*2] contributions;              //real contributions[K * 2];  // Array to hold contributions for log_sum_exp
+
 
   // priors
                                           // forse ho sbagliato dovrei fissare phi e kappa, non voglio inferirli giusto?
@@ -66,21 +84,70 @@ model {
   }
   
 
-  // print("phi: ", phi, ", kappa: ", kappa, ", w: ", w, ", tau: ", tau);  // Print statement in model block
+
 
 
   //likelihood
-      for (i in 1:N) {
-        int c = 1;
-        for (k in 1:K) {
-         for (j in 1:2) {
-          contributions[c] = log(w[seg_assignment[i],k]) + log(theta[seg_assignment[i],k,j]) + binomial_lpmf(NV[i] | DP[i], peaks[seg_assignment[i],j]);
-          c += 1;
-        }
-      }
-      target += log_sum_exp(contributions);
+    for (i in 1:N) {
+    int c = 1;
+    
+    for (k in 1:K) {
+      for (j in 1:2) {
 
+        //print("i = ", i," NV = ", NV[i], ", DP = ", DP[i], 
+              //  "; perturbed_w[", seg_assignment[i], ", ", k, "] = ", perturbed_w[seg_assignment[i], k], "; tau[",k,"] = ",tau[k]);
+
+
+
+        // Check for invalid w values (out of bounds)
+        if (perturbed_w[seg_assignment[i], k] <= 0 || perturbed_w[seg_assignment[i], k] > 1) {
+          print("Invalid perturbed_w at i = ", i, ", k = ", k, 
+                "; NV = ", NV[i], ", DP = ", DP[i], 
+                "; perturbed_w[", seg_assignment[i], ", ", k, "] = ", perturbed_w[seg_assignment[i], k]);
+        }
+        
+        // Check for invalid theta values (out of bounds)
+        if (theta[seg_assignment[i], k, j] <= 0 || theta[seg_assignment[i], k, j] > 1) {
+          print("Invalid theta at i = ", i, ", T = ", k, ", j = ", j, ", karyotype = ", karyotype[seg_assignment[i]],
+                "; NV = ", NV[i], ", DP = ", DP[i], 
+                "; theta[", seg_assignment[i], ", ", k, ", ", j, "] = ", theta[seg_assignment[i], k, j],"; tau[",k,"] = ",tau[k]);
+        }
+        
+        // Check for invalid peaks values (out of bounds)
+        if (peaks[seg_assignment[i], j] <= 0 || peaks[seg_assignment[i], j] >= 1) {
+          print("Invalid peaks at i = ", i, ", j = ", j, 
+                "; NV = ", NV[i], ", DP = ", DP[i], 
+                "; peaks[", seg_assignment[i], ", ", j, "] = ", peaks[seg_assignment[i], j]);
+        }
+
+        // Check for invalid NV and DP values (invalid binomial inputs)
+        if (NV[i] < 0 || NV[i] > DP[i]) {
+          print("Invalid NV or DP at i = ", i, 
+                "; NV = ", NV[i], ", DP = ", DP[i]);
+        }
+        
+        // Likelihood calculation with contributions
+        real contribution = log(perturbed_w[seg_assignment[i], k]) +
+                            log(theta[seg_assignment[i], k, j]) +
+                            binomial_lpmf(NV[i] | DP[i], peaks[seg_assignment[i], j]);
+
+        // Check if contribution is NaN or infinite (numerical issues)
+        if (is_nan(contribution) || (contribution > 1.0e20 || contribution < -1.0e20)) {
+            print("Invalid contribution at i = ", i, ", k = ", k, ", j = ", j, 
+                  "; NV = ", NV[i], ", DP = ", DP[i], 
+                  "; contribution = ", contribution);
+            // Handle the invalid contribution case (e.g., setting it to zero or another value)
+        }
+
+        contributions[c] = contribution;
+        c += 1;
+      }
     }
+    
+    // Accumulate the log_sum_exp of contributions after the loops over k and j
+    target += log_sum_exp(contributions);
+  }
+
 }
 
 
