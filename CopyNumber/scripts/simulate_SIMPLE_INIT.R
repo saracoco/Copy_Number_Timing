@@ -1,29 +1,37 @@
-library(patchwork)
-library(loo)
-library(bayesplot)
-library(cmdstanr)
-library(factoextra)
-library(dplyr)
-library(stringr) #for plotting add in the right script
-library(fossil) #RI and ARI computation
-library(gridExtra)
-library(ppclust)
+library(patchwork) # plotting
+library(loo)        # model selection
+library(bayesplot)  # plotting
+library(cmdstanr)   # inference
+library(factoextra)  
+library(dplyr)     # simulation + inference
+library(stringr) # for plotting add in the right script
+library(fossil) # RI and ARI computation
+library(gridExtra) # plotting
+library(ppclust) # initialization step 
+library(tidyr)
 
 set.seed(133)
 
+tollerance = 0.0001
+print(paste0("tolerance: ", tollerance))    
 
+max_attempts = 2
 
 #setwd("C:/Users/sarac/CDS_git/Copy-Number-Timing/CopyNumber/")
 #orfeo
 
-sim_list = c(0,6,7,8,9,10,11,12,13,14,15)
-number_clocks_list = c(2,2,2,2,3,3,3,3,4,4,4)
-number_events_list = c(6,10,20,30,6,10,20,30,10,20,30)
-epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
+sim_list = c(0)
+# sim_list = c(0,6,7,8,9,10,11,12,13,14,15)
+number_clocks_list = c(3)
+# number_clocks_list = c(2,2,2,2,3,3,3,3,4,4,4)
+number_events_list = c(10)
+# number_events_list = c(6,10,20,30,6,10,20,30,10,20,30)
+epsilon_list = c(0.20)
+# epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
+
+
+
 for (i in (1:length(sim_list))) {
-
-
-
 
     # setwd("D:/scratch/Copy_Number_Timing/CopyNumber")
     setwd("/orfeo/cephfs/scratch/cdslab/scocomello/Copy_Number_Timing/CopyNumber")
@@ -34,34 +42,31 @@ for (i in (1:length(sim_list))) {
     source("./CNTiming/R/fitting_functions.R")
     source("./CNTiming/R/plotting_functions.R")
 
-
     self_name = as.character(sim_list[i])
     new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
     dir.create(new_dir)
 
     number_events = number_events_list[i]
     number_clocks = number_clocks_list[i]
+    print("number of clocks: ", number_clocks )
 
     INIT = TRUE
     epsilon = epsilon_list[i]
-    n_simulations = 20
-    purity = 0.99
+    n_simulations = 10
+    purity = 0.98
 
     vector_karyo <- c("2:0", "2:1", "2:2")
     weights_karyo <- c(0.33, 0.33, 0.33)
-
 
     # get simulation parametes
     coverage = 100 # average number of reads that align to a reference base
     mu = 1e-4 # mutation rate
     w = 1e-2 # cell division rate
     l = 1e7 # length of the segment
-    time_interval = 20
+    time_interval = 10
 
 
     options(bitmapType='cairo')
-
-
 
 
     for(i in 1:n_simulations){
@@ -97,25 +102,25 @@ for (i in (1:length(sim_list))) {
 
 
       
-      Subtitle <- vector("list", (length(unique(simulation_data_all_segments$segment_id))+1))
-      Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
-      num_mutations_all_segments <- c()
+      # Subtitle <- vector("list", (length(unique(simulation_data_all_segments$segment_id))+1))
+      # Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
+      # num_mutations_all_segments <- c()
 
-        for (i in seq_along(unique(simulation_data_all_segments$segment_id))) {
-        segment <- unique(simulation_data_all_segments$segment_id)[i]
-        num_mutations <- nrow(simulation_data_all_segments %>% filter(segment_id == segment))
-        num_mutations_all_segments <- c(num_mutations_all_segments, num_mutations)
-        Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
-      }
+      #   for (i in seq_along(unique(simulation_data_all_segments$segment_id))) {
+      #   segment <- unique(simulation_data_all_segments$segment_id)[i]
+      #   num_mutations <- nrow(simulation_data_all_segments %>% filter(segment_id == segment))
+      #   num_mutations_all_segments <- c(num_mutations_all_segments, num_mutations)
+      #   Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
+      # }
       
-      Subtitle <- paste(Subtitle, collapse = "   ")
-      cat(Subtitle)
+      # Subtitle <- paste(Subtitle, collapse = "   ")
+      # cat(Subtitle)
 
-      mean_mut <- mean(num_mutations_all_segments)
-      max_mut <- max(num_mutations_all_segments)
-      min_mut <- min(num_mutations_all_segments)
+      # mean_mut <- mean(num_mutations_all_segments)
+      # max_mut <- max(num_mutations_all_segments)
+      # min_mut <- min(num_mutations_all_segments)
 
-      Subtitle_short <- paste0("Mutations per segment: average =", mean_mut, ",  min = ", min_mut, ", max = ", max_mut )
+      # Subtitle_short <- paste0("Mutations per segment: average =", mean_mut, ",  min = ", min_mut, ", max = ", max_mut )
 
 
       #add statistics on number of mutations from the simulation
@@ -135,42 +140,39 @@ for (i in (1:length(sim_list))) {
 
 
 
-      simulation_data_plot = simulation_data_all_segments %>% mutate (tau = round(tau, 2))
-      plot_data <- simulation_data_plot %>% 
-        geom_histogram(alpha = 0.6, position = "identity", color = "black") + # Add a black border to bars
-        labs(
-          x = "VAF",
-          y = "Count",
-          title = "Distribution on the VAF for each segment in the simulated data",
-          subtitle = paste0(Subtitle_short)
-        )+
-        facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
-        theme_minimal() +
-        theme(
-          panel.background = element_rect(fill = "white", color = NA),  
-          plot.background = element_rect(fill = "white", color = NA),   
-          strip.background = element_rect(fill = "white", color = NA),  
-          strip.placement = "outside",   
-          axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  
-          axis.ticks.x = element_line(color = "black"),  
-          panel.grid.major = element_line(color = "grey90"), # Subtle grid lines
-          panel.spacing = unit(1, "lines"),  
-          strip.text.x = element_text(size = 10, color = "black"),  
-          axis.line = element_line(color = "black"),  
-          axis.title.x = element_text(color = "black", size = 12),  # Bigger font for axis titles
-          axis.title.y = element_text(color = "black", size = 12),   
-          plot.title = element_text(size = 16, face = "bold"),  # Bold title for better readability
-          plot.subtitle = element_text(size = 12, face = "italic")  # Italic subtitle
-      ) + xlim(0, 1)
+      #  simulation_data_plot = simulation_data_all_segments %>% mutate (tau = round(tau, 2))
+      #  plot_data <- simulation_data_plot %>% 
+      #    ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
+      #    geom_histogram(alpha = .5, position = "identity") +
+      #    labs(
+      #      title = "Distribution on the VAF for each segment in the simulated data",
+      #      subtitle = paste0(Subtitle_short)
+      #    )+
+      #    facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
+      #    theme_minimal() +
+      #    theme(
+      #    panel.background = element_rect(fill = "white", color = NA),  # White panel background
+      #    plot.background = element_rect(fill = "white", color = NA),   # White plot background
+      #    strip.background = element_rect(fill = "white", color = NA),  # White strip background
+      #    strip.placement = "outside",   # Place facet labels outside
+      #    axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
+      #    axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
+      #    panel.spacing = unit(1, "lines"),  # Adjust space between facets
+      #    strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
+      #    axis.line = element_line(color = "black"),  # Black axis lines
+      #    axis.title.x = element_text(color = "black"),  # Black x-axis title
+      #    axis.title.y = element_text(color = "black")   # Black y-axis title
+      #  )+
+      #   xlim(0, 1)
 
 
-      #save plot of the simulated data in which we can see each single segment VAF distribution
-      ggsave("./plots/simulation_data.png", plot = plot_data, width = 12 + simulation_params$number_events, height = 10 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
-      #simulation_params can be substituted in relation with simulation_data variables
+      # #save plot of the simulated data in which we can see each single segment VAF distribution
+      # ggsave("./plots/simulation_data.png", plot = plot_data, width = 12 + simulation_params$number_events, height = 10 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
+      # #simulation_params can be substituted in relation with simulation_data variables
       
       
       #in fit model selection best K the plots for each K inference is directly saved 
-      results <- fit_model_selection_best_K(simulation_data_all_segments, data$karyo, purity, INIT = INIT, simulation_params = simulation_params)
+      results <- fit_model_selection_best_K(simulation_data_all_segments, data$karyo, purity, max_attempts = max_attempts, INIT = INIT, simulation_params = simulation_params, tollerance = tollerance )
       saveRDS(results, paste0("./results/results_simulation",i,".rds"))
       
 

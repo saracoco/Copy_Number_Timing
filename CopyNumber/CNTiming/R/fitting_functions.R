@@ -18,7 +18,7 @@ library(dplyr)
 #' @examples
 #' fit_model_selection()
 
-fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=4, INIT=TRUE, simulation_params = simulation_params){
+fit_model_selection_best_K = function(all_sim, karyo, purity=0.98, max_attempts=4, INIT=TRUE, VALIDATION = TRUE, simulation_params = null, tollerance = 0.01){
 
   set.seed(123)
   if (INIT==TRUE){
@@ -30,25 +30,40 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
   #Regola empirica: In generale, si può considerare come massimo plausibile un numero di cluster pari a 
   # sqrt(n/2), dove n è il numero di punti dati.
   
-  if (length(karyo) <= 15){
-    k_max = (length(karyo)/2)-1
-  } else { k_max = sqrt(length(karyo))  #does not converge with initialization (don't know why (ex #seg = 10 --> k_max = 5, with 5 does not converge))
+
+  if (VALIDATION == TRUE){
+    if (length(karyo) <= 15){
+    k_max = (length(karyo)/2)-1    # k_max = (length(karyo)/2)-1
+    } else { k_max = sqrt(length(karyo))  #does not converge with initialization (don't know why (ex #seg = 10 --> k_max = 5, with 5 does not converge))
+    }
+  } else {
+    if (length(karyo) <= 15){
+    k_max = length(karyo)
+    } else { k_max = (length(karyo))/2  #does not converge with initialization (don't know why (ex #seg = 10 --> k_max = 5, with 5 does not converge))
+    }
   }
   
+  
   for (K in 1:k_max) {
-    input_data <- prepare_input_data(all_sim, karyo, K, purity)
+    if (VALIDATION == TRUE){
+    input_data <- prepare_input_data(all_sim, karyo, K, purity, VALIDATION == TRUE)
     accepted_mutations = readRDS("results/accepted_mutations.rds") #potrei prenderli direttamente da input_data quando non farò model validation
+    }else{
+    input_data <- prepare_input_data(all_sim, karyo, K, purity, VALIDATION == FALSE)
+    accepted_mutations = readRDS("results/accepted_mutations.rds") #potrei prenderli direttamente da input_data quando non farò model validation      
+    }
 
     if (INIT==TRUE){
       # inits_chain <- get_init(tau_single_inference, K)     # uncomment to run initialization with single segment model
-      inits_chain <- get_init_simpler(accepted_mutations, K)
+      inits_chain <- get_init_simpler(accepted_mutations, K, purity = purity)
       # print(paste0("These are the values used for initializing the model ", inits_chain)) # uncomment to check for initialization problems
-      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE)
+      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE, tollerance = tollerance)
     } else {
-      res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE)
+      res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE, tollerance = tollerance)
     }
         # Plot ELBO values over iterations
         output_files <- res$latent_dynamics_files()
+        print(paste0("output_files ", output_files,"\n"))
         elbo_data <- read.csv(output_files, header = FALSE, comment.char = "#")
         colnames(elbo_data) <- c("iter", "time_in_seconds", "ELBO")
         iterations <- elbo_data$iter  # iteration column
@@ -76,16 +91,9 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
           # Check log likelihood values 
           lp__ <- res$draws("lp__")
-          cat (paste0(" mode of lp__ = unnormalized_log_lik = ", mode(lp__), "last value = ", lp__[100], " dimension of lp__ = ", dim(lp__),"\n"))
           lp_approx__ <- res$draws("lp_approx__")
-          cat (paste0(" mode of lp_approx after rowSums = ", mode(rowSums(lp_approx__)), " dimension of lp_approx__ = ", dim(lp_approx__),"\n"))
           log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE) # merge chains potrebbe non servire
-          # cat (paste0(" mode of log_lik after rosSums = likelihood from generated quantities", log_lik_matrix[1], "dimension of log_lik = ", dim(log_lik_matrix), "\n"))
-          cat (paste0(" mode of log_lik after rosSums = likelihood from generated quantities", mode(rowSums(log_lik_matrix)),"last value = ", rowSums(log_lik_matrix)[100], "dimension of log_lik = ", dim(log_lik_matrix), "\n"))
-          # lp_approx <- res$lp_approx() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
-          # lp <- res$lp() #res_tibble %>% dplyr::filter(param == "lp__") %>% pull(median)
-          # lp__ <- as.matrix(stanfit, pars = "lp__")
-          # lp__ <- res$lp()
+         
 
           log_lik_total_per_sample <- rowSums(log_lik_matrix)
           L <- mode(log_lik_total_per_sample)
@@ -94,7 +102,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
           AIC <- 2 * total_number_params - 2 * L
 
           # Generate names for w[sim_params_num, K] format
-          names_weights <- outer(1:simulation_params$number_events, 1:K, 
+          names_weights <- outer(1:input_data$S, 1:K, 
                                 FUN = function(i, j) paste0("w[", i, ",", j, "]"))
           # Convert to a vector for easier extraction
           draws = 1000
@@ -115,30 +123,33 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
           res_entropy = 0
           post = w_ICL
-          print(paste0("w_ICL ",w_ICL))
-          print(paste0("post ",post))
+
           for (k in 1:K ){
             post_k = post[k]
-        
-            print(paste0("post_k ",post_k))
-
             log_post_k = log(post_k + 0.000001)
             post_k_entr = post_k * log_post_k * mut_per_seg
-            print(paste0("post_k_entr ",post_k_entr))
-
             post_k_entr = sum(post_k_entr)
-            post_k_entr = -1 * (post_k_entr)
-            print(paste0("post_k_entr last step ",post_k_entr))
-            
+            post_k_entr = -1 * (post_k_entr)            
             res_entropy = res_entropy + post_k_entr
-            print(paste0("res_entropy last step ",res_entropy))
-
           }
           entropy = res_entropy
     
-          ICL = BIC + entropy
-          print(paste0("entropy ",entropy))
 
+          post_Segments = t(w_ICL)
+          entropy_per_segment = c()
+          for (s in 1:S ){
+            post_s = post_Segments[s]
+            log_post_s = log(post_s + 0.000001)
+            post_s_entr = post_s * log_post_s * mut_per_seg
+            post_s_entr = sum(post_s_entr)
+            post_s_entr = -1 * (post_s_entr)            
+            entropy_per_segment = c(entropy_per_segment, post_s_entr)
+          }
+
+
+
+          ICL = BIC + entropy
+          # print(paste0("entropy ",entropy))
 
           #LOO
           loo_result<-loo(log_lik_matrix)
@@ -167,7 +178,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
           #       fixed_param = TRUE        # Sample from priors only
           #     )
 
-        
               # # AGGIUNGI PHI, K, THETA
               # # PRIOR PLOT 
               # draws_df <- res$draws(format = "df")  # Extract draws as a data frame
@@ -204,17 +214,18 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
                   xlim(0, 1) + # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
                   theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
 
-                  
-              ggsave(paste0("./plots/priors_tau_",K,".png"),  width = (8 + (simulation_params$number_events/2)), height = ( 8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_tau)
+                  dim_1 = (8 + (input_data$S/2))
+
+              ggsave(paste0("./plots/priors_tau_",K,".png"),  width = dim_1, height = dim_1, limitsize = FALSE, device = png, plot=areas_tau)
 
 
                   # names_w <- paste("w_prior[", 1:K, "]", sep = "")
                   intervals_weigths_per_tau <- list()
                     for (k in 1:K){
-                          names_weights <- paste("w_prior[",1:simulation_params$number_events,",", k, "]", sep = "") 
+                          names_weights <- paste("w_prior[",1:input_data$S,",", k, "]", sep = "") 
                           intervals_weigths_per_tau[[k]] <- mcmc_areas_ridges(draws_matrix, pars = names_weights, point_est = "median", prob = 0.8)+
                                       labs(
-                                        title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(simulation_params$number_events)),
+                                        title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(input_data$S)),
                                         subtitle = "with median and 80% and 95% intervals"
                                       ) +
                                       theme(plot.background = element_rect(fill = "white"),text = element_text(size = 15))
@@ -222,8 +233,9 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
                     }
                     areas_w <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
 
+                  dim_2 = (15 + (input_data$S/2))
         
-              ggsave(paste0("./plots/priors_w_",K,".png"),  width = (15 + (simulation_params$number_events/2)), height = (8 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=areas_w)
+              ggsave(paste0("./plots/priors_w_",K,".png"),  width = dim_2, height = dim_1, limitsize = FALSE, device = png, plot=areas_w)
 
 
               # # Plot tau
@@ -231,8 +243,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
               #   geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
               #   labs(title = "Prior Distributions for tau", x = "tau", y = "Frequency") +
               #   theme_minimal()
-
-
 
               # # Reshape w to long format
               # w_long <- pivot_longer(as.data.frame(w_draws), cols = everything(), names_to = "w_param", values_to = "w_value")
@@ -247,10 +257,6 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
               #   theme_minimal() +
               #   facet_wrap(~ interaction(segment, clock), scales = "free")
 
-
-
-        
-
           # prior_plot <- (prior_tau|prior_w )  +
           #   plot_layout(widths = c(8), heights = c(10)) +
           #   plot_annotation(
@@ -261,19 +267,17 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
           # ggsave(paste0("./plots/priors_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=prior_plot)
 
 
-
-
-
-
-
-
           #instead of saving here save all together as soon as you can
           saveRDS(res, paste0("results/res",K,".rds"))
           saveRDS(input_data, paste0("results/input_data_",K,".rds"))
 
-
-          p <- plotting(res,input_data, all_sim ,K, simulation_params)
-          ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
+          if (VALIDATION == TRUE){
+            p <- plotting(res,input_data, all_sim ,K, simulation_params)
+            ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p)
+          }else{
+            p <- plotting_fit(res,input_data, all_sim ,K)
+            ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (input_data$S/2)), height = (16 + (input_data$S/2)), limitsize = FALSE, device = png, plot=p)
+          }
           
 
           plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
@@ -281,13 +285,19 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 
   }
   
+
    best_K <- model_selection_tibble %>% dplyr::filter(BIC == min(BIC)) %>% pull(K)
+
+  if (VALIDATION == TRUE){
    input_data <- prepare_input_data(all_sim, karyo, best_K, purity)
+  }else{
+   input_data <- prepare_input_data(all_sim, karyo, best_K, purity, VALIDATION == FALSE)
+  }
    
     
    if (INIT==TRUE){
     accepted_mutations = readRDS("results/accepted_mutations.rds")
-    inits_chain <- get_init_simpler(accepted_mutations, best_K)
+    inits_chain <- get_init_simpler(accepted_mutations, best_K, purity = purity)
     #  inits_chain <- get_init(tau_single_inference, best_K)
      print(paste0("These are the values used for initializing the model ",inits_chain))
      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT=TRUE)
@@ -296,12 +306,16 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
    }
    
 
-  
+  if (VALIDATION == TRUE){
    p_best_K <- plotting(res,input_data, all_sim, best_K, simulation_params)
    ggsave(paste0("./plots/plot_inference_",best_K,"_best_K.png"), width = (12 + (simulation_params$number_events/2)), height = (16 + (simulation_params$number_events/2)), limitsize = FALSE, device = png, plot=p_best_K)
-   
+  }else {
+   p_best_K <- plotting_fit(res,input_data, all_sim, best_K)
+   ggsave(paste0("./plots/plot_inference_",best_K,"_best_K.png"), width = (12 + (input_data$S/2)), height = (16 + (input_data$S/2)), limitsize = FALSE, device = png, plot=p_best_K)    
+  }
+
    p_elbo_iter <- plotting_elbo(k_max)
-   ggsave(paste0("./elbo_vs_iterations_.png"), plot = p_elbo_iter)
+   ggsave(paste0("./elbo_vs_iterations_.png"),width = (12 + (input_data$S/2)), height = (10 + (input_data$S/2)), plot = p_elbo_iter)
 
 
   return(list(all_sim = all_sim, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations
@@ -332,7 +346,7 @@ fit_model_selection_best_K = function(all_sim, karyo, purity=0.99, max_attempts=
 library(cmdstanr)
 
 #fit variational taking the best run 
-fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 10000, grad_samples = 10, elbo_samples = 100) {
+fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 10000, grad_samples = 10, elbo_samples = 100, tollerance = 0.01) {
   # Load the Stan model
   model <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
   best_elbo <- -Inf  # Start with the worst possible ELBO
@@ -356,6 +370,12 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
       total_attempts <- total_attempts + 1
       retries <- retries + 1
 
+      quiet <- function(x) { 
+                sink(tempfile()) 
+                on.exit(sink()) 
+                invisible(force(x)) 
+              } 
+
       result <- tryCatch({
         # Attempt variational inference
         # jacobian: the default is FALSE, meaning optimization yields the (regularized) maximum likelihood estimate. 
@@ -371,12 +391,63 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
             draws = 1000,
             # output_dir = "./",
             eval_elbo = 1,
-            tol_rel_obj = 0.0001
+            tol_rel_obj = tollerance 
           )
           print(res$init())
 
+
+          # if (INIT == TRUE) {
+          # res <- quiet(model$variational(
+          #   data = input_data, 
+          #   init = list(initialization),  # Use the provided initialization
+          #   iter = iter, 
+          #   grad_samples = grad_samples, 
+          #   elbo_samples = elbo_samples,
+          #   save_latent_dynamics = TRUE,
+          #   draws = 1000,
+          #   # output_dir = "./",
+          #   eval_elbo = 1,
+          #   tol_rel_obj = tollerance 
+          # ))
+          # print(res$init())
+
+
+          # Shuffle and moderately perturb initialization values
+          ###############################################################################################################################################################à  
+          set.seed(42) 
+
+          shuffled_taus <- sample(initialization$tau)
+          # print(paste0("init_tau: ", initialization$tau ))
+          perturbed_taus <- shuffled_taus + rnorm(length(shuffled_taus), 0, 0.1) # Adjust the perturbation scale as needed
+          perturbed_taus[perturbed_taus >= 0.88] <- 0.88  # Check for elements greater than 1 and replace them with 1 otherwise fit fails
+          perturbed_taus[perturbed_taus <= 0] <- 0.07
+
+          print(paste0("perturbed tau: ", perturbed_taus))  
+
+          initialization$tau = perturbed_taus
+
+          # phi does not change
+
+          # Apply the perturbation to w as wells
+          print (paste0("w_init after inference: ",initialization$w," ",ncol(initialization$w) == 1))
+          #######################################################################################################################################################################à
+
+          # shuffled_w <- sample(initialization$w)
+
+          # initialization$w = (perturbed_w)
+          
+          # inits_chain <- list(w = t(perturbed_w), tau = perturbed_taus, phi = perturbed_phi, kappa = initialization$kappa)
+          # initialization = inits_chain            
+          # print(paste0("Print perturbed initialization at ",total_attempts+1,": \n", ))
+          # cat(paste0("w = ", inits_chain$w, "\n "))
+          # cat(paste0("tau = ", inits_chain$tau, "\n "))
+          # cat(paste0("phi = ", inits_chain$phi, "\n "))
+          # cat(paste0("kappa = ", inits_chain$kappa))
+
+          
+
         } else {
-          res <- model$variational(
+          res <- quiet(model$variational(
             data = input_data, 
             iter = iter, 
             grad_samples = grad_samples, 
@@ -385,13 +456,14 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
             draws = 1000,
             # output_dir = "./",
             eval_elbo = 1,
-            tol_rel_obj = 0.0001
-          )
+            tol_rel_obj = tollerance 
+          ))
         }
 
 
         # print(res$metadata())
         # print(res$cmdstan_summary()
+
 
 
         output_files <- res$latent_dynamics_files()
@@ -456,7 +528,7 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
 #' @examples
 #' prepare_input_data()
 
-prepare_input_data = function(all_sim, karyo, K, purity){
+prepare_input_data = function(all_sim, karyo, K, purity, VALIDATION = TRUE){
   
   all_sim <- all_sim[order(all_sim$segment_id), ]
 
@@ -475,17 +547,13 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     peaks[i,] <- get_clonal_peaks(karyotype[i], purity)
   }
 
-  
-
   cat("these are the peaks used to filter out mutations \n")
   print(peaks)
   cat("These are the Karyotypes extracted from the all_sim data, used in peaks\n")
   print(karyotype)
   print(seg)
-
   cat("These are the Karyotypes directly from the simulation, used for peaks in the model\n ")
   print(karyo)
-
 
   alpha = 0.05
   min_mutations_number = 2
@@ -497,7 +565,13 @@ prepare_input_data = function(all_sim, karyo, K, purity){
     
     DP <- all_sim$DP
     NV <- all_sim$NV
+
+    print(paste0("DP ", DP[1:4]))
     
+
+    # require(reshape2)
+    # mat$id <- rownames(mat) 
+    # melt(mat)
     
     accepted_idx <- lapply(1:length(DP), function(i) {
       for (j in unique(all_sim$segment_id)) {
@@ -511,8 +585,13 @@ prepare_input_data = function(all_sim, karyo, K, purity){
       }
     }) %>% unlist()
     
+
     # Get only good mutations
-    accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$segment_name[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] , segment_index=all_sim$segment_id[accepted_idx])
+    if (VALIDATION == FALSE){
+      accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$segment_name[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] , segment_index=all_sim$segment_id[accepted_idx])
+    }else{
+      accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=all_sim$segment_name[accepted_idx], karyotype=all_sim$karyotype[accepted_idx], tau=all_sim$tau[accepted_idx] , segment_index=all_sim$segment_id[accepted_idx])
+    }
     
   }
   
@@ -533,9 +612,9 @@ prepare_input_data = function(all_sim, karyo, K, purity){
   )
   
 
-  cat("These are the peaks which are passed in the inference task, more reliable let's say\n")
-  print(input_data$peaks)
-  print(karyotype)
+  # cat("These are the peaks which are passed in the inference task, more reliable let's say\n")
+  # print(input_data$peaks)
+  # print(karyotype)
 
 
   saveRDS(accepted_mutations, paste0("results/accepted_mutations.rds"))
@@ -619,7 +698,7 @@ get_init = function(data, K, phi=c(), kappa=5){
 #' get_init()
 
 #take as input the data ready to be used for inference
-get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5){
+get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5, purity = 0.98){
 
     accepted_mutations <- accepted_mutations[order(accepted_mutations$segment_index), ]
 
@@ -648,24 +727,27 @@ get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5){
         
         DP <- accepted_mutations$DP
         NV <- accepted_mutations$NV
+
         
-        
+        print(unique(accepted_mutations$segment_index))
         alpha_beta_all <- lapply(1:length(DP), function(i) {
           for (j in unique(accepted_mutations$segment_index)) {
               if (accepted_mutations$segment_index[i]==j){
               quantiles_1 <- qbinom(probs, DP[i], peaks[j,1])
               quantiles_2 <- qbinom(probs, DP[i], peaks[j,2])
+
             if ((NV[i] >= quantiles_1[1]) && (NV[i] <= quantiles_1[2])) {
                 return("omega1")
             }else if ((NV[i] >= quantiles_2[1]) && (NV[i] <= quantiles_2[2])){
                 return("omega2")
+
             }
             }
           }
         }) %>% unlist()
     
 
-
+    print(paste0("alpha_beta_all ",length(alpha_beta_all)))
     df <- data.frame(alpha_beta_all = alpha_beta_all, segment_id = accepted_mutations$segment_index, karyotype = accepted_mutations$karyotype)
     # Group by segment_id and calculate the proportions of alpha and beta
     proportions <- df %>%
@@ -689,11 +771,11 @@ get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5){
   # Loop through each row to calculate tau_posterior
   for (i in 1:nrow(proportions)) {
     if (proportions$karyotype[i] == '2:1') {
-      proportions$tau_posterior[i] <- 3 * proportions$proportion_beta[i] / 
-                                      (2 * proportions$proportion_beta[i] + proportions$proportion_alpha[i])
+      proportions$tau_posterior[i] <- 3 * (proportions$proportion_beta[i]+0.0001) / 
+                                      (2 * (proportions$proportion_beta[i]+0.0001) + (proportions$proportion_alpha[i]+0.0001))
     } else {
-      proportions$tau_posterior[i] <- 2 * proportions$proportion_beta[i] / 
-                                      (2 * proportions$proportion_beta[i] + proportions$proportion_alpha[i])
+      proportions$tau_posterior[i] <- 2 * (proportions$proportion_beta[i]+0.0001) / 
+                                      (2 * (proportions$proportion_beta[i]+0.0001) + (proportions$proportion_alpha[i]))
     }
   }
 
@@ -705,7 +787,17 @@ get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5){
   # Apply fuzzy c-means clustering
   res.fcm <- fcm(as.matrix(proportions$tau_posterior), centers = K)
 
-  init_taus <- c(res.fcm$v)
+  print(paste0("dim(proportions$tau_posterior): ", length(proportions$tau_posterior) ))
+  if (length(proportions$tau_posterior)==K){
+      init_taus <- (proportions$tau_posterior)  
+    }else{
+      init_taus <- c(res.fcm$v)
+    }
+  cat(paste0("init_taus from clustering  ",init_taus))
+
+
+
+  # init_taus <- c(res.fcm$v)
   init_taus[init_taus >= 0.88] <- 0.88  # Check for elements greater than 1 and replace them with 1 otherwise fit fails
   init_taus[init_taus == 0] <- 0.07   
   init_w <- as.matrix(res.fcm$u)
