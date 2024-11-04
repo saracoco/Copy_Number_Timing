@@ -17,7 +17,8 @@ library(dplyr)
 #' @examples
 #' fit_model_selection()
 
-fit_model_selection_best_K = function(data, karyo, purity=0.98, max_attempts=4, INIT=TRUE, tollerance = 0.01, compute_external_metric = FALSE){
+
+fit_model_selection_best_K = function(data, karyo, purity, max_attempts=4, INIT=TRUE, tollerance = 0.01, compute_external_metric = FALSE){
 
   if (INIT==TRUE){
     #tau_single_inference <- fit_single_segments(data, purity=purity) # uncomment to run initialization with single segment model
@@ -31,14 +32,16 @@ model_selection_tibble <- dplyr::tibble()
 #  } else { 
 #     k_max = (length(karyo))/2  
 #  }
- if (length(karyo) <= 15){
+ if (length(karyo) <= 2){
+   k_max = (length(karyo)) 
+ } else if (length(karyo) <= 7){
     k_max = (length(karyo)-1) 
  } else if (length(karyo) <= 15) { 
     k_max = ((floor(length(karyo)/2))-1)
  } else{
     k_max = ceiling(sqrt(length(karyo))) 
  }
-  input_data <- prepare_input_data(data, karyo, 1, purity)
+  input_data <- prepare_input_data(data, karyo, 1, purity=purity)
   accepted_mutations = readRDS("results/accepted_mutations.rds") #potrei prenderli direttamente da input_data quando non farò model validation      
   S <- length(unique(accepted_mutations$segment_id))
 
@@ -46,7 +49,7 @@ model_selection_tibble <- dplyr::tibble()
   entropy_per_segment_matrix_norm = matrix(0, k_max, S)
   
  for (K in 1:k_max) {
-    input_data <- prepare_input_data(data, karyo, K, purity)
+    input_data <- prepare_input_data(data, karyo, K, purity=purity)
 
     if (INIT==TRUE){
       # inits_chain <- get_init(tau_single_inference, K)     # uncomment to run initialization with single segment model
@@ -93,7 +96,7 @@ model_selection_tibble <- dplyr::tibble()
     log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE) # merge chains potrebbe non servire
     
     log_lik_total_per_sample <- rowSums(log_lik_matrix)
-    L <- mode(log_lik_total_per_sample)
+    L <- median(log_lik_total_per_sample)
 
     BIC <- ((total_number_params * log(N)) - 2 * L) # %>% unname()
     AIC <- 2 * total_number_params - 2 * L
@@ -108,7 +111,7 @@ model_selection_tibble <- dplyr::tibble()
     names_weights <- as.vector(names_weights)
     w_ICL <- as.matrix(stanfit, pars = names_weights)
     dim(w_ICL) = c(draws,S*K)
-    w_ICL <- apply(w_ICL, 2, mode) # mode over draws
+    w_ICL <- apply(w_ICL, 2, median) # median check over draws
     dim(w_ICL) = c(S,K) # check by row
     w_ICL = t(w_ICL)
 
@@ -234,16 +237,26 @@ model_selection_tibble <- dplyr::tibble()
    model_selection_tibble_temp <- model_selection_tibble[1:2, bycol= TRUE]
    best_K_temp <- model_selection_tibble_temp %>% dplyr::filter(BIC == min(BIC)) %>% pull(K)   
 
-   if (best_K_temp!=1){
+     if (best_K_temp!=1){
+          if (k_max==2){
+          best_K <- 2
+          }else{
+            while(mean(entropy_per_segment_matrix_norm[best_K_temp+1,]) - mean(entropy_per_segment_matrix_norm[best_K_temp,]) < 0 & best_K_temp < k_max ){
+               best_K_temp = best_K_temp + 1
+               if ( best_K_temp == k_max ){
+                break
+               }}}
+      } else {
+      best_K <- 1
+      }
+    best_K <- best_K_temp
 
-     best_K <- which.min(rowMeans(entropy_per_segment_matrix_norm[-1,]))+1
-     
-   } else {
-    best_K <- 1
+   if(best_K==k_max){
+    cli::cli_alert_info("The algorithm should be run with more Components ")
    }
+   
 
-
-   input_data <- prepare_input_data(data, karyo, best_K, purity, VALIDATION == FALSE)
+   input_data <- prepare_input_data(data, karyo, best_K, purity=purity, VALIDATION == FALSE)
    
    if (INIT==TRUE){
     accepted_mutations = readRDS("results/accepted_mutations.rds")
@@ -255,11 +268,15 @@ model_selection_tibble <- dplyr::tibble()
      res <- fit_variational(input_data, max_attempts=max_attempts, INIT=FALSE, tollerance = tollerance)
    }
    
+    if (compute_external_metric){
+    compute_external_metric(accepted_mutations, res, best_K, best_K = TRUE)   
+    }
+
    p_best_K <- plotting_fit(res,input_data, data, best_K)
    ggsave(paste0("./plots/plot_inference_",best_K,"_best_K.png"), width = (12 + (input_data$S/2)), height = (16 + (input_data$S/2)), limitsize = FALSE, device = png, plot=p_best_K)    
 
    p_elbo_iter <- plotting_elbo(k_max)
-   ggsave(paste0("./elbo_vs_iterations_.png"),width = (12 + (input_data$S/2)), height = (10 + (input_data$S/2)), plot = p_elbo_iter)
+   ggsave(paste0("./elbo_vs_iterations_.png"),width = (20 + (input_data$S/2)), height = (10 + (input_data$S/2)), plot = p_elbo_iter)
 
   return(list(data = data, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations
 ))
@@ -430,17 +447,17 @@ prepare_input_data = function(data, karyo, K, purity, VALIDATION = TRUE){
 
   karyotype <- data %>%
   group_by(segment_id) %>%
-  summarise(karyotype = first(karyotype)) %>%
+  summarise(karyotype = unique(karyotype)[1]) %>%
   pull(karyotype)
 
   seg <- data %>%
   group_by(segment_id) %>%
-  summarise(karyotype = first(karyotype)) %>%
+  summarise(karyotype = unique(karyotype)[1]) %>%
   pull(segment_id)
 
   peaks <- matrix(0, nrow = length(karyotype), ncol = 2)
   for (i in 1:length(karyotype)) {
-    peaks[i,] <- get_clonal_peaks(karyotype[i], purity)
+    peaks[i,] <- get_clonal_peaks(karyotype[i], purity=purity)
   }
 
   cat("these are the peaks used to filter out mutations \n")
@@ -481,7 +498,7 @@ prepare_input_data = function(data, karyo, K, purity, VALIDATION = TRUE){
       }
     }) %>% unlist()
     
-
+    print(paste0(data$segment_name_real[accepted_idx]))
     # Get only good mutations
       accepted_mutations <- data.frame(DP = DP[accepted_idx], NV = NV[accepted_idx], segment_id=data$segment_name[accepted_idx], karyotype=data$karyotype[accepted_idx], tau=data$tau[accepted_idx] , segment_index=data$segment_id[accepted_idx])
     
@@ -490,7 +507,7 @@ prepare_input_data = function(data, karyo, K, purity, VALIDATION = TRUE){
   counts <- table(accepted_mutations$segment_id)
   minimum_number_per_segment <- all(counts >= min_mutations_number)
   
-  if (minimum_number_per_segment == TRUE) {
+  # if (minimum_number_per_segment == TRUE) {
   
   input_data <- list(
     S = length(unique(data$segment_name[accepted_idx])),
@@ -506,10 +523,12 @@ prepare_input_data = function(data, karyo, K, purity, VALIDATION = TRUE){
   # cat("These are the peaks which are passed in the inference task, more reliable let's say\n")
   # print(input_data$peaks)
   # print(karyotype)
+
+  print("saving_RDS")
   saveRDS(accepted_mutations, paste0("results/accepted_mutations.rds"))
 
   return(input_data)
-} 
+# } else {         cli::cli_alert_info("Segment with index {.val {segment_idx}} has less that ")}
 }
 
 
@@ -580,23 +599,23 @@ get_init = function(data, K, phi=c(), kappa=5){
 #' get_init()
 
 #take as input the data ready to be used for inference
-get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5, purity = 0.98){
+get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5, purity){
 
     accepted_mutations <- accepted_mutations[order(accepted_mutations$segment_index), ]
 
       karyotype <- accepted_mutations %>%
       group_by(segment_index) %>%
-      summarise(karyotype = first(karyotype)) %>%
+      summarise(karyotype = unique(karyotype)[1]) %>%
       pull(karyotype)
 
       seg <- accepted_mutations %>%
       group_by(segment_index) %>%
-      summarise(karyotype = first(karyotype)) %>%
+      summarise(karyotype = unique(karyotype)[1]) %>%
       pull(segment_index)
 
       peaks <- matrix(0, nrow = length(karyotype), ncol = 2)
       for (i in 1:length(karyotype)) {
-        peaks[i,] <- get_clonal_peaks(karyotype[i], purity)
+        peaks[i,] <- get_clonal_peaks(karyotype[i], purity=purity)
       }
 
 
@@ -730,7 +749,7 @@ get_init_simpler = function(accepted_mutations, K, phi=c(), kappa=5, purity = 0.
 peaks_inference = function(karyo, purity){
   peaks <- matrix(0, nrow = length(karyo), ncol = 2)
   for (i in 1:length(karyo)) {
-    peaks[i,] <- get_clonal_peaks(karyo[i], purity)
+    peaks[i,] <- get_clonal_peaks(karyo[i], purity=purity)
   }
   return(peaks)
 }
@@ -804,10 +823,10 @@ get_tau_posteriors = function(fit, k) {
 
 
 
-mode <- function(v) {
-   uniqv <- unique(v)
-   uniqv[which.max(tabulate(match(v, uniqv)))]
-}
+# mode <- function(v) {
+#    uniqv <- unique(v)
+#    uniqv[which.max(tabulate(match(v, uniqv)))]
+# }
 
 
 
@@ -837,7 +856,7 @@ mode <- function(v) {
 #' @examples
 #' fit_single_segments()
 
-fit_single_segments = function(data, alpha = .05, purity = 1){
+fit_single_segments = function(data, alpha = .05, purity ){
   # FIRST OPTION: run single segment inference for initialization of tau and w
   model_single <- cmdstanr::cmdstan_model("../../CopyNumber/models/mixture_CNA_timing_binomial.stan")
 
@@ -860,7 +879,7 @@ fit_single_segments = function(data, alpha = .05, purity = 1){
 
     data_single = data %>% filter(segment_id==segment_index)
     k = unique(data$karyotype[data$segment_id==segment_index])
-    peaks_single <- get_clonal_peaks(k, purity)
+    peaks_single <- get_clonal_peaks(k, purity=purity)
 
     probs <- c(alpha/2, 1 - alpha/2)
 
@@ -939,7 +958,7 @@ fit_single_segments = function(data, alpha = .05, purity = 1){
 
 
 
-compute_external_metric <- function(accepted_mutations, res, K){
+compute_external_metric <- function(accepted_mutations, res, K, best_K = FALSE){
 
   # EXTERNAL METRIC 
     #obtain score of simulation accuracy EXTERNAL METRICS (with known ground truth)
@@ -950,7 +969,7 @@ compute_external_metric <- function(accepted_mutations, res, K){
     
     names_tau <- paste("tau[", 1:K, "]", sep = "")
     tau_inferred <- res$draws(names_tau, format = "matrix")
-    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {mode(tau_inferred[,i])} ) %>% unlist() 
+    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
 
     all_differences = c()
     identity_matrix_RI = c()
@@ -973,7 +992,13 @@ compute_external_metric <- function(accepted_mutations, res, K){
     }
 
     MAE <- mean(all_differences)
-    saveRDS(MAE, paste0("results/MAE_",K,".rds"))
+    
+    if (best_K == TRUE){
+      saveRDS(MAE, paste0("results/MAE_best_K.rds"))
+    } else {
+      saveRDS(MAE, paste0("results/MAE_",K,".rds"))
+    }
+
     real_assignment <- accepted_mutations %>%
                                   group_by(segment_id) %>%
                                   summarize(tau = first(tau)) %>%
@@ -984,8 +1009,12 @@ compute_external_metric <- function(accepted_mutations, res, K){
     model_assignment <- identity_matrix_RI        #i,2,3 ecc 
     RI <- rand.index(real_assignment,model_assignment)
     #ARI <- adj.rand.index(real_assignment,model_assignment)  #NaN
-    saveRDS(RI, paste0("results/RI_",K,".rds"))
     #saveRDS(ARI, paste0("results/ARI_",K,".rds"))
+    if (best_K == TRUE){
+          saveRDS(RI, paste0("results/RI_best_K.rds"))
+    } else {
+          saveRDS(RI, paste0("results/RI_",K,".rds"))
+    }
 
     MAE = round(MAE, 3)
     print(paste0("MAE: ", MAE))

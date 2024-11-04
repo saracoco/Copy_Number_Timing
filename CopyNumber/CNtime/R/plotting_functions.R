@@ -18,8 +18,15 @@ library(tidyr)
 
 plotting_fit <- function(res, input_data, all_sim, K){
 
+
   draws <- res$draws(format = "matrix")
+  
+  draws <- apply(draws, 2, function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+  })
   names <- paste("tau[", 1:K, "]", sep = "")
+
 
   areas_tau <- mcmc_areas(
     draws,
@@ -154,7 +161,7 @@ plotting_fit <- function(res, input_data, all_sim, K){
     
     names_tau <- paste("tau[", 1:K, "]", sep = "")
     tau_inferred <- res$draws(names_tau, format = "matrix")
-    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {mode(tau_inferred[,i])} ) %>% unlist() 
+    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
 
     all_differences = c()
     identity_matrix_RI = c()
@@ -163,6 +170,7 @@ plotting_fit <- function(res, input_data, all_sim, K){
         seg_modified <- segment %>%  str_split(" ")
         segment_number <- seg_modified[[1]][2]
       
+
                 print(paste0("segment_number",segment_number))
 
         names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  #regex_pars = c("w")
@@ -208,10 +216,11 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
 
     accepted_mutations = readRDS("results/accepted_mutations.rds") # Adjust input as needed
     
+
     # Prepare data as for the MAE computation 
     names_tau <- paste("tau[", 1:K, "]", sep = "")
     tau_inferred <- res$draws(names_tau, format = "matrix")
-    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {mode(tau_inferred[,i])} ) %>% unlist() 
+    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
 
     identity_matrix_RI = c()
 
@@ -223,11 +232,15 @@ plotting_cluster_partition <- function(res, K, VALIDATION = FALSE){
 
         names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  
         weights_inferred <- res$draws(names_weights, format = "matrix")
-        weights_inferred_map <- lapply(1:ncol(weights_inferred), function(i) {mode(weights_inferred[,i])} ) %>% unlist()
+        weights_inferred_map <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist()
 
         tau_index_assigned <- which.max(weights_inferred_map)
+        print(paste0("tau_index_assigned: ",tau_index_assigned))
+
         identity_matrix_RI <- c(identity_matrix_RI, tau_index_assigned)
     }
+    print(paste0("identity_matrix_RI: ",identity_matrix_RI))
+    print(paste0("tau_inferred_map: ",tau_inferred_map))
 
     # Prepare the data for ggplot
     segments <- unique(accepted_mutations$segment_id)
@@ -577,7 +590,7 @@ plot_simulate <- function(all_sim){
 
 
   simulation_plot <- (tau_segments_plot | karyo_segments_plot) +
-      plot_layout(widths = 12, heights = 10 ) +
+      plot_layout(widths = 25, heights = 10 ) +
       plot_annotation(
         title = " ",
         subtitle = " ",
