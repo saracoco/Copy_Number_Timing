@@ -158,7 +158,7 @@ simulate_mutations = function(karyotype, time_interval, tau, l, mu, w, segment_i
   }
 
   if (!(nrow(all_mutations_df) > 0)) stop("no mutations were simulated with the given parameters!")
-  all_mutations_df <- all_mutations_df %>% mutate(karyotype = karyotype, segment_id = segment_id)
+  all_mutations_df <- all_mutations_df %>% mutate(karyotype = karyotype, segment_id = segment_id, , segment_name_real = segment_id)  # understand how to handle it in a better way
   all_mutations_df
 }
 

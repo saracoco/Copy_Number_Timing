@@ -870,3 +870,200 @@ plotting_fit <- function(res, input_data, all_sim, K){
 
   return(final_plot)
 }
+
+
+
+
+
+# copy of the plotting function in CNtime before removing the plot for observed vs predicted
+
+#' plotting_fit Function
+#'
+#' For non validation setting, this function plot the essential information to be seen in order to evaluate the performance of the tool out of a simulation where real data or simulated data to be inferred are known.
+#' @param res results
+#' @param input_data input_data
+#' @param all_sim all_sim
+#' @param K K
+#' @export
+#' @examples
+#' plotting_fit()
+
+plotting_fit <- function(res, input_data, all_sim, K){
+
+
+  draws <- res$draws(format = "matrix")
+  
+  draws <- apply(draws, 2, function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+  })
+  names <- paste("tau[", 1:K, "]", sep = "")
+
+
+  areas_tau <- mcmc_areas(
+    draws,
+    pars = names,
+    prob = 0.8, # 80% intervals
+    prob_outer = 0.95, # 99%
+    point_est = "median"
+  )+
+    labs(
+      title = "Approximate Posterior distributions",
+      subtitle = "With median and 80% and 95% intervals"
+    )+
+    xlim(0, 1) # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
+
+  color_scheme_set("blue")
+  intervals_weigths_per_tau <- list()
+  for (k in 1:K){
+        names_weights <- paste("w[",1:input_data$S,",", k, "]", sep = "") 
+        intervals_weigths_per_tau[[k]] <- mcmc_intervals(draws, pars = names_weights, point_est = "median", prob = 0.8, prob_outer = 0.95)+
+                    labs(
+                      title =  str_wrap( paste0("Posterior distributions of the weigths for tau ",k), width = 30 + K + sqrt(input_data$S)),
+                      subtitle = "With median and 80% and 95% intervals"
+                    )
+  }
+  intervals_weigths_per_tau <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
+
+  #not using it, just need to add the general title to avoid repetitions
+  intervals <- mcmc_intervals(draws, regex_pars = c("w"), point_est = "median", prob = 0.8, prob_outer = 0.95)+
+    labs(
+      title = "Posterior distributions of the weigths for each tau inferred",
+      subtitle = "With median and 80% and 95% intervals"
+    )
+  #
+
+  #posterior predictive check
+  stanfit <- rstan::read_stan_csv(res$output_files())
+  y_rep <- as.matrix(stanfit, pars = "NV_pred")
+  y = input_data$NV
+  #distribution of replicated data vs real data
+  ppc <- ppc_dens_overlay(
+    y = input_data$NV,
+    yrep = y_rep) +
+    labs(
+      title = "Posterior Predictive checks with 10000 iterations",
+      subtitle = "Density distribution"
+    )
+  #empirical cumulative distribution
+  ecdf_compare <-ppc_ecdf_overlay(y,y_rep)
+
+  #predictive intervals vs observed values
+  intervals_compare <- ppc_intervals(y,y_rep) +
+    labs(
+      subtitle = " Observed data vs Predicted values for each segment",
+    )
+  mean_compare <- ppc_stat(y,y_rep, stat = 'mean')
+  max_compare <- ppc_stat(y,y_rep, stat = 'max')
+  min_compare <- ppc_stat(y,y_rep, stat = 'min')
+  median_compare <- ppc_stat(y,y_rep, stat = 'median')
+  
+  accepted_mutations <- readRDS("results/accepted_mutations.rds") #Give as input do not call it from inside the function for the package
+  
+  Subtitle <- vector("list", (length(unique(accepted_mutations$segment_id))+1))
+  Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
+  num_mutations_all <- c()
+    for (i in seq_along(unique(accepted_mutations$segment_id))) {
+    segment <- unique(accepted_mutations$segment_id)[i]
+    num_mutations_single <- nrow(accepted_mutations %>% filter(segment_id == segment))
+    num_mutations_all <- c(num_mutations_all, num_mutations_single)
+    Subtitle[[i+1]] <- paste0(segment, "=", num_mutations_single," ")
+  }
+  Subtitle <- paste(Subtitle, collapse = "   ")
+  cat(Subtitle)
+
+  mean_mut <- mean(num_mutations_all)
+  max_mut <- max(num_mutations_all)
+  min_mut <- min(num_mutations_all)
+
+  Subtitle_short <- paste0("Mutations per segment: average =", mean_mut, ",  min = ", min_mut, ", max = ", max_mut )
+  
+  print(paste0("accepted mutation plot filtered data", dim(accepted_mutations)))
+
+
+  plot_filtered_data <- accepted_mutations %>%
+  ggplot(mapping = aes(x = NV / DP, fill = segment_id)) +
+  geom_histogram(alpha = .5, position = "identity", bins=60) +
+  labs(x = "VAF")+
+  labs(
+    title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (input_data$S) ) ),
+    subtitle = paste0( str_wrap(Subtitle_short, width = 90 + K + (input_data$S) ) )
+  )+
+  facet_wrap(vars(karyotype))
+
+  vline_positions <- data.frame(
+  segment_id = paste0("segment ",1:input_data$S),
+  peaks_1 = input_data$peaks[,1],
+  peaks_2 = input_data$peaks[,2]
+  )
+  accepted_mutations <- merge(accepted_mutations, vline_positions, by = "segment_id")
+
+
+
+  Subtitle <- vector("list", (length(unique(all_sim$segment_id))+1))
+  Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
+  num_mutations_all_segments <- c()
+
+    for (i in seq_along(unique(all_sim$segment_id))) {
+    segment <- unique(all_sim$segment_id)[i]
+    num_mutations <- nrow(all_sim %>% filter(segment_id == segment))
+    num_mutations_all_segments <- c(num_mutations_all_segments, num_mutations)
+    Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
+  }
+  
+  Subtitle <- paste(Subtitle, collapse = "   ")
+  cat(Subtitle)
+
+  mean_mut <- mean(num_mutations_all_segments)
+  max_mut <- max(num_mutations_all_segments)
+  min_mut <- min(num_mutations_all_segments)
+
+  Subtitle_short <- paste0("Average number of mutations per segment: ", mean_mut, "  Minimum number of mutations per segment: ", min_mut, "  Maximum number of mutations per segment: ", max_mut )
+
+
+  vline_positions <- data.frame(
+  segment_name = paste0("segment ",1:input_data$S),
+  peaks_1 = input_data$peaks[,1],
+  peaks_2 = input_data$peaks[,2]
+  )
+  all_sim_ <- merge(all_sim, vline_positions, by = "segment_name")
+
+
+   accepted_mutations <- readRDS("results/accepted_mutations.rds") #Reload as I modify it for visualization purposes. Give as input do not call it from inside the function for the package
+    
+    names_tau <- paste("tau[", 1:K, "]", sep = "")
+    tau_inferred <- res$draws(names_tau, format = "matrix")
+    tau_inferred_map <- lapply(1:ncol(tau_inferred), function(i) {median(tau_inferred[,i])} ) %>% unlist() 
+
+    all_differences = c()
+    identity_matrix_RI = c()
+    for (i in seq_along(unique(accepted_mutations$segment_id))) {
+        segment <- unique(accepted_mutations$segment_id)[i] #potrei mettere direttamente i 
+        seg_modified <- segment %>%  str_split(" ")
+        segment_number <- seg_modified[[1]][2]
+      
+
+                print(paste0("segment_number",segment_number))
+
+        names_weights <- paste("w[",segment_number,",", 1:K, "]", sep = "")  #regex_pars = c("w")
+        weights_inferred <- res$draws(names_weights, format = "matrix")
+        weights_inferred_median <- lapply(1:ncol(weights_inferred), function(i) {median(weights_inferred[,i])} ) %>% unlist() 
+
+        tau_index_assigned <- which.max(weights_inferred_median)
+        tau_inferred_assigned =  tau_inferred_map[which.max(weights_inferred_median)]
+        identity_matrix_RI = c(identity_matrix_RI, tau_index_assigned) #extract the vector of taus (unordered) to which the ordered segments are assigned
+    }
+
+    model_assignment <- identity_matrix_RI        #i,2,3 ecc 
+
+    final_plot <- plot_filtered_data /  (areas_tau | ppc) / intervals_weigths_per_tau / intervals_compare / (mean_compare|max_compare|min_compare|median_compare) +
+      plot_layout(widths = c( 6, 6, 8, 8, 8), heights = c(15 + input_data$S + (input_data$S/1.3) , 15 + input_data$S + (input_data$S/1.3) + K, 15 + input_data$S + (input_data$S/1.3) + K*2, 8 + (input_data$S/1.3),  8 + (input_data$S/2))) +
+      plot_annotation(
+        title = paste0("Number of events: ", input_data$S),
+        subtitle = " ",
+        caption = ""
+      ) & theme(text = element_text(size = 12+sqrt(input_data$S)), plot.title = element_text(size = 15+sqrt(input_data$S)), plot.subtitle = element_text(size = 12+sqrt(input_data$S)), axis.text = element_text(size = 12 + sqrt(input_data$S)), plot.caption = element_text(size = 10 + sqrt(input_data$S)))
+    
+
+  return(final_plot)
+}
