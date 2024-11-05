@@ -3,35 +3,37 @@ library(tidyr)
 library(ggthemes)
 library(matrixStats)
 library(dplyr)
+library(cmdstanr)
+
 
 #' fit_model_selection_best_K Function
 #'
-#' being able to perform model selection on already simulated data or real data and add initialization to the inference 
-#' @param data data
-#' @param karyo karyotype
-#' @param purity sample purity
-#' @param max_attempts max number of repeated inference for ADVI
-#' @param INIT initialization values list (obtained by get_init)
+#' being able to perform model selection on already simulated data or real data and add rough initialization to the inference 
+#' @param data data: tibble [N × 9] (S3: tbl_df/tbl/data.frame): (key + attribute type) $mutation: chr, $allele: chr, $type: chr "private", $karyotype:chr "2:2" "2:2" "2:2" "2:2",$segment_id: int, $DP: int, $NV: int, $tau: num (0 for real case analysis or num for validation analysis), $segment_name:chr, $segment_name_real:chr = segment_idx to keep track of the accepted/non accepted segments. The table is ordered with respect to the segment_id attribute (is it necessary?)
+#' @param karyo karyotype: chr [1:S]
+#' @param purity sample purity: num
+#' @param max_attempts max number of repeated inference for ADVI: num
+#' @param INIT boolean variable to set the initialization phase to TRUE or FALSE:logi
+#' @param tolerance tolerance in the ELBO optimization procedure: num 
+#' @param compute_external_metric boolean variable to set the validation to TRUE or FALSE: logi
 #' @keywords fit
 #' @export
-#' @examples
+#' @examples results <- fit_model_selection_best_K(data, karyo, purity, INIT = INIT, max_attempts = max_attempts, tolerance = tolerance )
 #' fit_model_selection()
 
 
-fit_model_selection_best_K = function(data, karyo, purity, max_attempts=4, INIT=TRUE, tollerance = 0.01, compute_external_metric = FALSE){
+# to get karyo from the ordered table data:
+# 
+# karyo <- data %>%
+# group_by(segment_id) %>%
+# summarise(karyotype = first(karyotype)) %>%
+# pull(karyotype)
 
-  if (INIT==TRUE){
-    #tau_single_inference <- fit_single_segments(data, purity=purity) # uncomment to run initialization with single segment model
-  }
+fit_model_selection_best_K = function(data, karyo, purity, max_attempts=2, INIT=TRUE, tolerance = 0.01, compute_external_metric = FALSE){
 
 #MODEL SELECTION
 model_selection_tibble <- dplyr::tibble()
 
-#  if (length(karyo) <= 15){
-#     k_max = length(karyo)
-#  } else { 
-#     k_max = (length(karyo))/2  
-#  }
  if (length(karyo) <= 2){
    k_max = (length(karyo)) 
  } else if (length(karyo) <= 7){
@@ -41,7 +43,9 @@ model_selection_tibble <- dplyr::tibble()
  } else{
     k_max = ceiling(sqrt(length(karyo))) 
  }
-  input_data <- prepare_input_data(data, karyo, 1, purity=purity)
+
+
+  input_data <- prepare_input_data(data, karyo, K=1, purity=purity)
   accepted_mutations = readRDS("results/accepted_mutations.rds") #potrei prenderli direttamente da input_data quando non farò model validation      
   S <- length(unique(accepted_mutations$segment_id))
 
@@ -54,9 +58,9 @@ model_selection_tibble <- dplyr::tibble()
     if (INIT==TRUE){
       # inits_chain <- get_init(tau_single_inference, K)     # uncomment to run initialization with single segment model
       inits_chain <- get_init_simpler(accepted_mutations, K, purity = purity)
-      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE, tollerance = tollerance)
+      res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT = TRUE, tolerance = tolerance)
     } else {
-      res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE, tollerance = tollerance)
+      res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE, tolerance = tolerance)
     }
 
 
@@ -171,57 +175,68 @@ model_selection_tibble <- dplyr::tibble()
 
 
 
-    # CHECK PRIORS (function outside the main function)
-    draws_matrix <- res$draws(format = "matrix")
-    color_scheme_set("teal")
-    #manage to get the K from the model fit directly rather than as input
-    names_tau <- paste("tau_prior[", 1:K, "]", sep = "")
-    areas_tau <- mcmc_areas(
-        draws_matrix,
-        pars = names_tau,
-        prob = 0.8, # 80% intervals
-        #prob_outer = 0.95, # 99%
-        point_est = "median"
-    )+
-        labs(
-        title = " Prior distributions",
-        subtitle = "with median and 80% and 95% intervals"
-        )+
-        xlim(0, 1) + # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
-        theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
+    # # CHECK PRIORS (function outside the main function)
+    # draws_matrix <- res$draws(format = "matrix")
+    # color_scheme_set("teal")
+    # #manage to get the K from the model fit directly rather than as input
+    # names_tau <- paste("tau_prior[", 1:K, "]", sep = "")
+    # areas_tau <- mcmc_areas(
+    #     draws_matrix,
+    #     pars = names_tau,
+    #     prob = 0.8, # 80% intervals
+    #     #prob_outer = 0.95, # 99%
+    #     point_est = "median"
+    # )+
+    #     labs(
+    #     title = " Prior distributions",
+    #     subtitle = "with median and 80% and 95% intervals"
+    #     )+
+    #     xlim(0, 1) + # + scale_x_continuous(breaks = c(1:5), labels = c("A", "B", "C", "D", "E"))
+    #     theme(plot.background = element_rect(fill = "white"),text = element_text(size = 25))
 
-    dim_1 = (8 + (input_data$S/2))
-    ggsave(paste0("./plots/priors_tau_",K,".png"),  width = dim_1, height = dim_1, limitsize = FALSE, device = png, plot=areas_tau)
-
-
-    intervals_weigths_per_tau <- list()
-    for (k in 1:K){
-            names_weights <- paste("w_prior[",1:input_data$S,",", k, "]", sep = "") 
-            intervals_weigths_per_tau[[k]] <- mcmc_areas_ridges(draws_matrix, pars = names_weights, point_est = "median", prob = 0.8)+
-                        labs(
-                        title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(input_data$S)),
-                        subtitle = "with median and 80% and 95% intervals"
-                        ) +
-                        theme(plot.background = element_rect(fill = "white"),text = element_text(size = 15))
-
-    }
-    areas_w <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
-
-    dim_2 = (15 + (input_data$S/2))
-    ggsave(paste0("./plots/priors_w_",K,".png"),  width = dim_2, height = dim_1, limitsize = FALSE, device = png, plot=areas_w)
+    # dim_1 = (8 + (input_data$S/2))
+    # ggsave(paste0("./plots/priors_tau_",K,".png"),  width = dim_1, height = dim_1, limitsize = FALSE, device = png, plot=areas_tau)
 
 
+    # intervals_weigths_per_tau <- list()
+    # for (k in 1:K){
+    #         names_weights <- paste("w_prior[",1:input_data$S,",", k, "]", sep = "") 
+    #         intervals_weigths_per_tau[[k]] <- mcmc_areas_ridges(draws_matrix, pars = names_weights, point_est = "median", prob = 0.8)+
+    #                     labs(
+    #                     title =  str_wrap( paste0("Prior distributions of the weigths for tau ",k), width = 30 + K + sqrt(input_data$S)),
+    #                     subtitle = "with median and 80% and 95% intervals"
+    #                     ) +
+    #                     theme(plot.background = element_rect(fill = "white"),text = element_text(size = 15))
 
+    # }
+    # areas_w <- gridExtra::grid.arrange(grobs = intervals_weigths_per_tau, ncol=K) #add global title
+
+    # dim_2 = (15 + (input_data$S/2))
+    # ggsave(paste0("./plots/priors_w_",K,".png"),  width = dim_2, height = dim_1, limitsize = FALSE, device = png, plot=areas_w)
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    # restore saving these data?
     # move these somewhere else
-    saveRDS(res, paste0("results/res",K,".rds"))
-    saveRDS(input_data, paste0("results/input_data_",K,".rds"))
+    # saveRDS(res, paste0("results/res",K,".rds"))
+    # saveRDS(input_data, paste0("results/input_data_",K,".rds"))
 
     # plotting
-    p <- plotting_fit(res,input_data, data,K)
+    p <- plotting_fit(res, input_data, data, K)
     ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (input_data$S/2)), height = (16 + (input_data$S/2)), limitsize = FALSE, device = png, plot=p)
 
-    plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
-    ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
+    # plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
+    # ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
 
     }
   
@@ -263,9 +278,9 @@ model_selection_tibble <- dplyr::tibble()
     inits_chain <- get_init_simpler(accepted_mutations, best_K, purity = purity)
     #  inits_chain <- get_init(tau_single_inference, best_K)
      print(paste0("These are the values used for initializing the model ",inits_chain))
-     res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT=TRUE, tollerance = tollerance)
+     res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT=TRUE, tolerance = tolerance)
    } else {
-     res <- fit_variational(input_data, max_attempts=max_attempts, INIT=FALSE, tollerance = tollerance)
+     res <- fit_variational(input_data, max_attempts=max_attempts, INIT=FALSE, tolerance = tolerance)
    }
    
     if (compute_external_metric){
@@ -310,10 +325,9 @@ model_selection_tibble <- dplyr::tibble()
 #' fit_variational()
 
 ##### fit without filtering step ############################################################################################################################
-library(cmdstanr)
 
 #fit variational taking the best run 
-fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 1000, grad_samples = 10, elbo_samples = 100, tollerance = 0.01) {
+fit_variational <- function(input_data, max_attempts = 5, initialization = NULL, INIT = TRUE, initial_iter = 1000, grad_samples = 10, elbo_samples = 100, tolerance = 0.01) {
   # Load the Stan model
   model <- cmdstanr::cmdstan_model("../../CopyNumber/models/timing_mixed_simple.stan")
   best_elbo <- -Inf  # Start with the worst possible ELBO
@@ -352,7 +366,7 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
             draws = 1000,
             # output_dir = "./",
             eval_elbo = 1,
-            tol_rel_obj = tollerance 
+            tol_rel_obj = tolerance 
           )
           print(res$init())
 
@@ -383,7 +397,7 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
             draws = 1000,
             # output_dir = "./",
             eval_elbo = 1,
-            tol_rel_obj = tollerance 
+            tol_rel_obj = tolerance 
           )
         }
 
@@ -443,7 +457,7 @@ fit_variational <- function(input_data, max_attempts = 5, initialization = NULL,
 
 prepare_input_data = function(data, karyo, K, purity, VALIDATION = TRUE){
   
-  data <- data[order(data$segment_id), ]
+  #  already done in the preprocessing : data <- data[order(data$segment_id), ]
 
   karyotype <- data %>%
   group_by(segment_id) %>%
