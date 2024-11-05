@@ -12,8 +12,8 @@ library(tidyr)
 
 set.seed(133)
 
-tollerance = 0.0001
-print(paste0("tolerance: ", tollerance))    
+tolerance = 0.01
+print(paste0("tolerance: ", tolerance))    
 
 max_attempts = 2
 
@@ -24,14 +24,14 @@ sim_list = c(0)
 # sim_list = c(0,6,7,8,9,10,11,12,13,14,15)
 number_clocks_list = c(3)
 # number_clocks_list = c(2,2,2,2,3,3,3,3,4,4,4)
-number_events_list = c(10)
+number_events_list = c(8 )
 # number_events_list = c(6,10,20,30,6,10,20,30,10,20,30)
 epsilon_list = c(0.20)
 # epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
 
 
-
-for (i in (1:length(sim_list))) {
+i=1
+# for (i in (1:length(sim_list))) {
 
     # setwd("D:/scratch/Copy_Number_Timing/CopyNumber")
     setwd("/orfeo/cephfs/scratch/cdslab/scocomello/Copy_Number_Timing/CopyNumber")
@@ -39,8 +39,8 @@ for (i in (1:length(sim_list))) {
     original_dir <- getwd()
 
     source("./CNTiming/R/simulate_functions.R")
-    source("./CNTiming/R/fitting_functions.R")
-    source("./CNTiming/R/plotting_functions.R")
+    source("./CNtime/R/fitting_functions.R")
+    source("./CNtime/R/plotting_functions.R")
 
     self_name = as.character(sim_list[i])
     new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
@@ -48,28 +48,29 @@ for (i in (1:length(sim_list))) {
 
     number_events = number_events_list[i]
     number_clocks = number_clocks_list[i]
-    print("number of clocks: ", number_clocks )
+    print(paste0("number of clocks: ", number_clocks) )
 
     INIT = TRUE
     epsilon = epsilon_list[i]
-    n_simulations = 10
+    n_simulations = 1
     purity = 0.98
 
     vector_karyo <- c("2:0", "2:1", "2:2")
     weights_karyo <- c(0.33, 0.33, 0.33)
 
     # get simulation parametes
-    coverage = 100 # average number of reads that align to a reference base
+    coverage = 80 # average number of reads that align to a reference base
     mu = 1e-4 # mutation rate
     w = 1e-2 # cell division rate
     l = 1e7 # length of the segment
-    time_interval = 10
+    time_interval = 6
+
 
 
     options(bitmapType='cairo')
 
-
-    for(i in 1:n_simulations){
+i=1
+    # for(i in 1:n_simulations){
       # Create a unique directory for each iteration
       iter_dir <- paste0("/simulation_iteration_", i)
       iter_dir <- paste0(new_dir,iter_dir)
@@ -92,12 +93,12 @@ for (i in (1:length(sim_list))) {
       }
       weights_tau <- rep(1/number_clocks, number_clocks)
       
-      data <- get_taus_karyo(number_events, vector_tau, vector_karyo, weights_tau, weights_karyo)
-      simulation_data_all_segments = get_simulation(data$taus, data$karyo, purity, coverage = 100) # the other parameters have default value assigned if none is specified
-      simulation_data_all_segments <- simulation_data_all_segments[order(simulation_data_all_segments$segment_id), ]
-
-
-      saveRDS(simulation_data_all_segments, "./results/all_sim_input_prepare_input_data.rds")
+      data_simulation <- get_taus_karyo(number_events, vector_tau, vector_karyo, weights_tau, weights_karyo)
+      
+      # simulation_data_all_segments: "data" in the function of "fit_model_selection_best_K"
+      simulation_data_all_segments = get_simulation(data_simulation$taus, data_simulation$karyo, purity, time_interval, l, mu, w, coverage) # the other parameters have default value assigned if none is specified
+      data <- simulation_data_all_segments[order(simulation_data_all_segments$segment_id), ]
+      # saveRDS(data, "./results/all_sim_input_prepare_input_data.rds")
 
 
 
@@ -130,8 +131,8 @@ for (i in (1:length(sim_list))) {
         vector_karyo = vector_karyo,
         weights_tau = weights_tau,
         weights_karyo = weights_karyo,
-        taus = data$taus,
-        karyo = data$karyo,
+        taus = data_simulation$taus,
+        karyo = data_simulation$karyo,
         purity = purity,
         number_events = number_events, # = nrow(vector-tau) / nrow(vector_karyo)
         number_clocks = number_clocks, # = unique(vector_tau)
@@ -172,13 +173,10 @@ for (i in (1:length(sim_list))) {
       
       
       #in fit model selection best K the plots for each K inference is directly saved 
-      results <- fit_model_selection_best_K(simulation_data_all_segments, data$karyo, purity, max_attempts = max_attempts, INIT = INIT, simulation_params = simulation_params, tollerance = tollerance )
-      saveRDS(results, paste0("./results/results_simulation",i,".rds"))
-      
-
-      
-      
-      
+      # results <- fit_model_selection_best_K(data, data_simulation$karyo, purity, max_attempts = max_attempts, INIT = INIT, simulation_params = simulation_params, tolerance = tolerance )
+      results <- fit_model_selection_best_K(data, data_simulation$karyo, purity, max_attempts = max_attempts, INIT = INIT, tolerance = tolerance )
+      # saveRDS(results, paste0("./results/results_simulation",i,".rds"))
+    
       model_selection_plot = plotting_model_selection(results)
       model_selection_plot
       ggsave("./plots/model_selection_plot.png", plot = model_selection_plot, width = 12, height = 10,  device = png)
@@ -190,6 +188,6 @@ for (i in (1:length(sim_list))) {
       
       setwd(original_dir)
       
-    }
+    # }
 
-}
+# }
