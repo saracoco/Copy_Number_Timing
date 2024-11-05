@@ -934,6 +934,7 @@ plotting_fit <- function(res, input_data, all_sim, K){
   #
 
   #posterior predictive check
+  # y_rep <- res$draws(format = "matrix", pars = "NV_pred") check if it is correct 
   stanfit <- rstan::read_stan_csv(res$output_files())
   y_rep <- as.matrix(stanfit, pars = "NV_pred")
   y = input_data$NV

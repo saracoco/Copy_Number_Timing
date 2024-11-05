@@ -9,7 +9,7 @@ library(dplyr)
 #'
 #' being able to perform model selection on already simulated data or real data and add initialization to the inference 
 #' @param all_sim data
-#' @param karyo karyotype
+#' @param karyo karyotype: chr [1:S]
 #' @param purity sample purity
 #' @param max_attempts max number of repeated inference for ADVI
 #' @param INIT initialization values list (obtained by get_init)
