@@ -78,7 +78,7 @@ model_selection_tibble <- dplyr::tibble()
     labs(title = "ELBO Values over Iterations",
         x = "Iteration",
         y = "ELBO")
-    # saveRDS(p, paste0("./elbo_vs_iterations_",K,".rds"))  
+    saveRDS(p, paste0("./elbo_vs_iterations_",K,".rds"))  
 
 
     if (compute_external_metric){
