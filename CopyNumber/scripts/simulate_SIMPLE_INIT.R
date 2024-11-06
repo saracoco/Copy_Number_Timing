@@ -12,7 +12,7 @@ library(tidyr)
 
 set.seed(133)
 tolerance = 0.01
-print(paste0("tolerance: ", tolerance))    
+print(paste0("tolerance: ", tolerance))
 max_attempts = 2
 
 sim_list = c(0)
