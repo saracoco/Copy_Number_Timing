@@ -11,183 +11,112 @@ library(ppclust) # initialization step
 library(tidyr)
 
 set.seed(133)
-
 tolerance = 0.01
 print(paste0("tolerance: ", tolerance))    
-
 max_attempts = 2
 
-#setwd("C:/Users/sarac/CDS_git/Copy-Number-Timing/CopyNumber/")
-#orfeo
-
 sim_list = c(0)
-# sim_list = c(0,6,7,8,9,10,11,12,13,14,15)
 number_clocks_list = c(3)
-# number_clocks_list = c(2,2,2,2,3,3,3,3,4,4,4)
 number_events_list = c(8 )
-# number_events_list = c(6,10,20,30,6,10,20,30,10,20,30)
 epsilon_list = c(0.20)
-# epsilon_list = c(0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.15,0.15,0.15)
+
+setwd("../")
+original_dir <- getwd()
+
+source("./CNTiming/R/simulate_functions.R")
+source("./CNtime/R/fitting_functions.R")
+source("./CNtime/R/plotting_functions.R")
 
 
-i=1
-# for (i in (1:length(sim_list))) {
+i = 1
+self_name = as.character(sim_list[i])
+new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
+dir.create(new_dir)
 
-    # setwd("D:/scratch/Copy_Number_Timing/CopyNumber")
-    setwd("/orfeo/cephfs/scratch/cdslab/scocomello/Copy_Number_Timing/CopyNumber")
+number_events = number_events_list[i]
+number_clocks = number_clocks_list[i]
+print(paste0("number of clocks: ", number_clocks) )
 
-    original_dir <- getwd()
+INIT = TRUE
+epsilon = epsilon_list[i]
+n_simulations = 1
+purity = 0.98
 
-    source("./CNTiming/R/simulate_functions.R")
-    source("./CNtime/R/fitting_functions.R")
-    source("./CNtime/R/plotting_functions.R")
+vector_karyo <- c("2:0", "2:1", "2:2")
+weights_karyo <- c(0.33, 0.33, 0.33)
 
-    self_name = as.character(sim_list[i])
-    new_dir = paste0("../",self_name) #relative path of the new created directory where to save the simulation results
-    dir.create(new_dir)
+# get simulation parametes
+coverage = 100 # average number of reads that align to a reference base
+mu = 1e-4 # mutation rate
+w = 1e-2 # cell division rate
+l = 1e7 # length of the segment
+time_interval = 7
 
-    number_events = number_events_list[i]
-    number_clocks = number_clocks_list[i]
-    print(paste0("number of clocks: ", number_clocks) )
-
-    INIT = TRUE
-    epsilon = epsilon_list[i]
-    n_simulations = 1
-    purity = 0.98
-
-    vector_karyo <- c("2:0", "2:1", "2:2")
-    weights_karyo <- c(0.33, 0.33, 0.33)
-
-    # get simulation parametes
-    coverage = 80 # average number of reads that align to a reference base
-    mu = 1e-4 # mutation rate
-    w = 1e-2 # cell division rate
-    l = 1e7 # length of the segment
-    time_interval = 6
-
-
-
-    options(bitmapType='cairo')
+options(bitmapType='cairo')
 
 i=1
-    # for(i in 1:n_simulations){
-      # Create a unique directory for each iteration
-      iter_dir <- paste0("/simulation_iteration_", i)
-      iter_dir <- paste0(new_dir,iter_dir)
-      dir.create(iter_dir)
-      setwd(iter_dir)
-      dir.create(paste0("./plots"), showWarnings = TRUE)
-      dir.create(paste0("./results"), showWarnings = FALSE)
+iter_dir <- paste0("/simulation_iteration_", i)
+iter_dir <- paste0(new_dir,iter_dir)
+dir.create(iter_dir)
+setwd(iter_dir)
+dir.create(paste0("./plots"), showWarnings = TRUE)
+dir.create(paste0("./results"), showWarnings = FALSE)
       
       
+vector_tau = rep(0, number_clocks)
+  
+for (j in 1:number_clocks){
+  vector_tau[j] = runif(1, 0)
+  if (j != 1){
+    while (!all ( abs(vector_tau[1:j-1] - vector_tau[j]) > epsilon  )   ){
+      vector_tau[j] = runif(1, 0)
+    }
+  }
+}
+weights_tau <- rep(1/number_clocks, number_clocks)
+data_simulation <- get_taus_karyo(number_events, vector_tau, vector_karyo, weights_tau, weights_karyo)
+simulation_data_all_segments = get_simulation(data_simulation$taus, data_simulation$karyo, purity, time_interval, l, mu, w, coverage) # the other parameters have default value assigned if none is specified
+data <- simulation_data_all_segments[order(simulation_data_all_segments$segment_id), ]
 
-      vector_tau = rep(0, number_clocks)
-      
-      for (j in 1:number_clocks){
-        vector_tau[j] = runif(1, 0)
-        if (j != 1){
-          while (!all ( abs(vector_tau[1:j-1] - vector_tau[j]) > epsilon  )   ){
-            vector_tau[j] = runif(1, 0)
-          }
-        }
-      }
-      weights_tau <- rep(1/number_clocks, number_clocks)
-      
-      data_simulation <- get_taus_karyo(number_events, vector_tau, vector_karyo, weights_tau, weights_karyo)
-      
-      # simulation_data_all_segments: "data" in the function of "fit_model_selection_best_K"
-      simulation_data_all_segments = get_simulation(data_simulation$taus, data_simulation$karyo, purity, time_interval, l, mu, w, coverage) # the other parameters have default value assigned if none is specified
-      data <- simulation_data_all_segments[order(simulation_data_all_segments$segment_id), ]
-      # saveRDS(data, "./results/all_sim_input_prepare_input_data.rds")
+simulation_params <- list(
+  vector_tau = vector_tau,
+  vector_karyo = vector_karyo,
+  weights_tau = weights_tau,
+  weights_karyo = weights_karyo,
+  taus = data_simulation$taus,
+  karyo = data_simulation$karyo,
+  purity = purity,
+  number_events = number_events, # = nrow(vector-tau) / nrow(vector_karyo)
+  number_clocks = number_clocks, # = unique(vector_tau)
+  epsilon = epsilon
+)
 
+input_for_fit = list(data = data, purity = purity, max_attempts = max_attempts, INIT = INIT, tolerance = tolerance)
+saveRDS(input_for_fit, paste0("./results/input_for_fit.rds"))
+# input_for_fit = readRDS("../../0/simulation_iteration_1/results/input_for_fit.rds")
+# results <- fit_model_selection_best_K(data, input_for_fit$purity, input_for_fit$max_attempts, input_for_fit$INIT, input_for_fit$tolerance )
+results <- fit_model_selection_best_K(data, purity, max_attempts, INIT, tolerance)
 
+# now results is a list of lenght k_max of results form the variational method with the summary statistics of the draws from the approximate posterior
 
-      
-      # Subtitle <- vector("list", (length(unique(simulation_data_all_segments$segment_id))+1))
-      # Subtitle[[1]]  <- paste0("Number of mutations per segment: ")
-      # num_mutations_all_segments <- c()
+input <- readRDS("./results/input_.rds")
+accepted_mutations <- input$accepted_mutations
+results_model_selection <- model_selection(data, results, accepted_mutations, compute_external_metric = FALSE)
 
-      #   for (i in seq_along(unique(simulation_data_all_segments$segment_id))) {
-      #   segment <- unique(simulation_data_all_segments$segment_id)[i]
-      #   num_mutations <- nrow(simulation_data_all_segments %>% filter(segment_id == segment))
-      #   num_mutations_all_segments <- c(num_mutations_all_segments, num_mutations)
-      #   Subtitle[[i+1]] <- paste0(segment, "=", num_mutations," ")
-      # }
-      
-      # Subtitle <- paste(Subtitle, collapse = "   ")
-      # cat(Subtitle)
+best_K <- results_model_selection$best_K
+model_selection_tibble <- results_model_selection$model_selection_tibble
 
-      # mean_mut <- mean(num_mutations_all_segments)
-      # max_mut <- max(num_mutations_all_segments)
-      # min_mut <- min(num_mutations_all_segments)
-
-      # Subtitle_short <- paste0("Mutations per segment: average =", mean_mut, ",  min = ", min_mut, ", max = ", max_mut )
-
-
-      #add statistics on number of mutations from the simulation
-      
-      simulation_params <- list(
-        vector_tau = vector_tau,
-        vector_karyo = vector_karyo,
-        weights_tau = weights_tau,
-        weights_karyo = weights_karyo,
-        taus = data_simulation$taus,
-        karyo = data_simulation$karyo,
-        purity = purity,
-        number_events = number_events, # = nrow(vector-tau) / nrow(vector_karyo)
-        number_clocks = number_clocks, # = unique(vector_tau)
-        epsilon = epsilon
-      )
+# input_list <- readRDS("./results/input_list.rds")
+plotting_fit_all_k(results, accepted_mutations, data)
 
 
+entropy <- results_model_selection$entropy_list
 
-      #  simulation_data_plot = simulation_data_all_segments %>% mutate (tau = round(tau, 2))
-      #  plot_data <- simulation_data_plot %>% 
-      #    ggplot(mapping = aes(x = NV / DP, fill = segment_name)) +
-      #    geom_histogram(alpha = .5, position = "identity") +
-      #    labs(
-      #      title = "Distribution on the VAF for each segment in the simulated data",
-      #      subtitle = paste0(Subtitle_short)
-      #    )+
-      #    facet_wrap(vars(karyotype, tau, segment_name), scales = "free_x", strip.position = "bottom") +
-      #    theme_minimal() +
-      #    theme(
-      #    panel.background = element_rect(fill = "white", color = NA),  # White panel background
-      #    plot.background = element_rect(fill = "white", color = NA),   # White plot background
-      #    strip.background = element_rect(fill = "white", color = NA),  # White strip background
-      #    strip.placement = "outside",   # Place facet labels outside
-      #    axis.text.x = element_text(angle = 360, hjust = 1, color = "black", size = 8),  # Rotate and adjust x-axis text
-      #    axis.ticks.x = element_line(color = "black"),  # Black x-axis ticks
-      #    panel.spacing = unit(1, "lines"),  # Adjust space between facets
-      #    strip.text.x = element_text(size = 10, color = "black"),  # Adjust and color strip text
-      #    axis.line = element_line(color = "black"),  # Black axis lines
-      #    axis.title.x = element_text(color = "black"),  # Black x-axis title
-      #    axis.title.y = element_text(color = "black")   # Black y-axis title
-      #  )+
-      #   xlim(0, 1)
+# model_selection_plot <- plotting_model_selection(model_selection_tibble, best_K, entropy_per_segment_matrix_norm, entropy_per_segment_matrix, accepted_mutations)
+model_selection_plot <- plotting_model_selection(model_selection_tibble, best_K, accepted_mutations, entropy)
+ggsave("./plots/model_selection_plot.png", plot = model_selection_plot, width = 12, height = 10,  device = png)
 
 
-      # #save plot of the simulated data in which we can see each single segment VAF distribution
-      # ggsave("./plots/simulation_data.png", plot = plot_data, width = 12 + simulation_params$number_events, height = 10 + simulation_params$number_events + (simulation_params$number_events/1.3), limitsize = FALSE,   device = png) 
-      # #simulation_params can be substituted in relation with simulation_data variables
-      
-      
-      #in fit model selection best K the plots for each K inference is directly saved 
-      # results <- fit_model_selection_best_K(data, data_simulation$karyo, purity, max_attempts = max_attempts, INIT = INIT, simulation_params = simulation_params, tolerance = tolerance )
-      results <- fit_model_selection_best_K(data, data_simulation$karyo, purity, max_attempts = max_attempts, INIT = INIT, tolerance = tolerance )
-      # saveRDS(results, paste0("./results/results_simulation",i,".rds"))
-    
-      model_selection_plot = plotting_model_selection(results)
-      model_selection_plot
-      ggsave("./plots/model_selection_plot.png", plot = model_selection_plot, width = 12, height = 10,  device = png)
-      
-      model_selection <- results$model_selection_tibble
-      saveRDS(model_selection, "./results/model_selection.rds")
       
 
-      
-      setwd(original_dir)
-      
-    # }
-
-# }
+# setwd(original_dir)
