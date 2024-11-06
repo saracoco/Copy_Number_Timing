@@ -23,7 +23,7 @@ epsilon_list = c(0.20)
 setwd("../")
 original_dir <- getwd()
 
-source("./CNTiming/R/simulate_functions.R")
+source("./scripts/simulate_functions.R")
 source("./CNtime/R/fitting_functions.R")
 source("./CNtime/R/plotting_functions.R")
 
