@@ -16,10 +16,10 @@ library(tidyr)
 #' @examples
 #' plotting_fit()
 
-plotting_fit <- function(res, input, all_sim, K){
+plotting_fit <- function(res, accepted_mutations, all_sim, K){
  
-  input_data = input$input_data
-  accepted_mutations = input$accepted_mutations
+  S <- length(unique(accepted_mutations$segment_id))
+
 
   draws <- res$draws(format = "matrix")
 
@@ -43,10 +43,10 @@ plotting_fit <- function(res, input, all_sim, K){
   color_scheme_set("blue")
   intervals_weigths_per_tau <- list()
   for (k in 1:K){
-    names_weights <- paste("w[",1:input_data$S,",", k, "]", sep = "") 
+    names_weights <- paste("w[",1:S,",", k, "]", sep = "") 
     intervals_weigths_per_tau[[k]] <- mcmc_intervals(draws, pars = names_weights, point_est = "median", prob = 0.8, prob_outer = 0.95)+
       labs(
-      title =  str_wrap( paste0("Posterior distributions of the weigths for tau ",k), width = 30 + K + sqrt(input_data$S)),
+      title =  str_wrap( paste0("Posterior distributions of the weigths for tau ",k), width = 30 + K + sqrt(S)),
       subtitle = "With median and 80% and 95% intervals"
       )
   }
@@ -87,20 +87,20 @@ plotting_fit <- function(res, input, all_sim, K){
   geom_histogram(alpha = .5, position = "identity", bins=60) +
   labs(x = "VAF")+
   labs(
-  title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (input_data$S) ) ),
-  subtitle = paste0( str_wrap(Subtitle_short, width = 90 + K + (input_data$S) ) )
+  title = paste0( str_wrap("Histogram of the VAF spectrum, per segment, resulting from the simulation (only the data used in the inference after the filtering step are plotted here)", width = 90 + K + (S) ) ),
+  subtitle = paste0( str_wrap(Subtitle_short, width = 90 + K + (S) ) )
   )+
   facet_wrap(vars(karyotype))
 
 
 
   final_plot <- plot_filtered_data /  (areas_tau) / intervals_weigths_per_tau +
-    plot_layout(widths = c( 6, 6, 8), heights = c(15 + input_data$S + (input_data$S/1.3) , 15 + input_data$S + (input_data$S/1.3) + K, 15 + input_data$S + (input_data$S/1.3) + K*2)) +
+    plot_layout(widths = c( 6, 6, 8), heights = c(15 + S + (S/1.3) , 15 + S + (S/1.3) + K, 15 + S + (S/1.3) + K*2)) +
     plot_annotation(
-    title = paste0("Number of events: ", input_data$S),
+    title = paste0("Number of events: ", S),
     subtitle = " ",
     caption = ""
-    ) & theme(text = element_text(size = 12+sqrt(input_data$S)), plot.title = element_text(size = 15+sqrt(input_data$S)), plot.subtitle = element_text(size = 12+sqrt(input_data$S)), axis.text = element_text(size = 12 + sqrt(input_data$S)), plot.caption = element_text(size = 10 + sqrt(input_data$S)))
+    ) & theme(text = element_text(size = 12+sqrt(S)), plot.title = element_text(size = 15+sqrt(S)), plot.subtitle = element_text(size = 12+sqrt(S)), axis.text = element_text(size = 12 + sqrt(S)), plot.caption = element_text(size = 10 + sqrt(S)))
     
 
   return(final_plot)
@@ -108,6 +108,73 @@ plotting_fit <- function(res, input, all_sim, K){
 
 
 
+
+
+
+
+#' plotting_fit_all_k Function
+#'
+#' For non validation setting, this function plot the essential information to be seen in order to evaluate the performance of the tool out of a simulation where real data or simulated data to be inferred are known.
+#' @param res results
+#' @param input_data input_data
+#' @param all_sim all_sim
+#' @param K K
+#' @export
+#' @examples
+#' plotting_fit()
+
+plotting_fit_all_k <- function(results, accepted_mutations, data){
+
+  karyo <- data %>%
+  group_by(segment_id) %>%
+  summarise(karyotype = first(karyotype)) %>%
+  pull(karyotype)
+
+  if (length(karyo) <= 2){
+    k_max = (length(karyo)) 
+  } else if (length(karyo) <= 7){
+    k_max = (length(karyo)-1) 
+  } else if (length(karyo) <= 15) { 
+    k_max = ((floor(length(karyo)/2))-1)
+  } else{
+    k_max = ceiling(sqrt(length(karyo))) 
+  }
+
+  model_selection_tibble <- dplyr::tibble()
+  S <- length(unique(accepted_mutations$segment_id))
+
+  for (K in 1:k_max) {
+    
+    res <- results[[K]]
+    
+    # Plot ELBO values over iterations
+    output_files <- res$latent_dynamics_files()
+    print(paste0("output_files ", output_files,"\n"))
+    elbo_data <- read.csv(output_files, header = FALSE, comment.char = "#")
+    colnames(elbo_data) <- c("iter", "time_in_seconds", "ELBO")
+    iterations <- elbo_data$iter  # iteration column
+    elbo_values <- elbo_data$ELBO  # ELBO column
+    elbo_df <- data.frame(iteration = iterations, elbo = elbo_values)
+        
+    p <- ggplot(elbo_df, aes(x = iteration, y = elbo)) +
+    geom_line(color = "blue") +
+    labs(title = "ELBO Values over Iterations",
+        x = "Iteration",
+        y = "ELBO")
+    saveRDS(p, paste0("./elbo_vs_iterations_",K,".rds"))  
+
+    p <- plotting_fit(res, accepted_mutations, data, K)
+        ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (S/2)), height = (16 + (S/2)), limitsize = FALSE, device = png, plot=p)
+
+
+
+
+}
+  # migliorare
+    p_elbo_iter <- plotting_elbo(k_max)
+    ggsave(paste0("./elbo_vs_iterations_.png"),width = (20 + (S/2)), height = (10 + (S/2)), plot = p_elbo_iter)
+
+}
 
 
 
@@ -207,12 +274,11 @@ plotting_cluster_partition <- function(res, K, input, VALIDATION = FALSE){
 #' @examples
 #' plotting_model_selection()
 
-plotting_model_selection <- function(results){
+# plotting_model_selection <- function(model_selection_tibble, best_K, entropy_per_segment_matrix_norm, entropy_per_segment_matrix, accepted_mutations){
+plotting_model_selection <- function(model_selection_tibble, best_K, accepted_mutations, entropy){
 
-  model_selection <- results$model_selection_tibble
-  best_K <- results$best_K
-  k_max = nrow(model_selection)
-
+  k_max = nrow(model_selection_tibble)
+  model_selection = model_selection_tibble
 # BIC plot
 bic_plot <- ggplot(data = model_selection, aes(x = K, y = BIC)) + 
     geom_line(aes(colour = "BIC Line"), size = 1) + 
@@ -376,6 +442,17 @@ model_selection_plot <- (bic_plot | aic_plot) / (loo_plot | log_lik_plot) /(ICL_
     axis.text = element_text(size = 8),
     plot.caption = element_text(size = 8)
   )
+
+entropy_per_segment_matrix <- entropy$entropy_per_segment_matrix
+entropy_per_segment_matrix_norm <- entropy$entropy_per_segment_matrix_norm
+
+# plot the entropy behaviour 
+  if (k_max>2){
+  print(paste0("k_max: ", k_max))
+  plot_entropy <- plotting_entropy(entropy_per_segment_matrix, entropy_per_segment_matrix_norm, k_max)
+  ggsave(paste0("./plot_entropy.png"),width = (6 + (k_max*2)), height = (5), plot = plot_entropy)
+  }
+
 
   return(model_selection_plot)
 }

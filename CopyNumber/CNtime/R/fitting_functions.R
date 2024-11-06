@@ -26,8 +26,6 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
   summarise(karyotype = first(karyotype)) %>%
   pull(karyotype)
 
-  #MODEL SELECTION
-  model_selection_tibble <- dplyr::tibble()
 
   if (length(karyo) <= 2){
     k_max = (length(karyo)) 
@@ -41,17 +39,19 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
 
   
   input <- prepare_input_data(data, karyo, K=1, purity=purity)
-  # saveRDS(input, paste0("./results/input_.rds"))
+  saveRDS(input, paste0("./results/input_.rds"))
   input_data = input$input_data
   accepted_mutations = input$accepted_mutations
   S <- length(unique(accepted_mutations$segment_id))
 
-  entropy_per_segment_matrix = matrix(0, k_max, S) # k_max rows and S columns
-  entropy_per_segment_matrix_norm = matrix(0, k_max, S)
-  
+
+  input_data_list = c()
+  results = c()
+
   for (K in 1:k_max) {
 
     input <- prepare_input_data(data, karyo, K, purity=purity)
+    input_data_list = append(input_data_list, input$input_data)
     input_data = input$input_data
     accepted_mutations = input$accepted_mutations
 
@@ -65,12 +65,81 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
       res <- fit_variational(input_data, max_attempts=max_attempts, INIT = FALSE, tolerance = tolerance)
     }
     saveRDS(res, paste0("./results/res_",K,".rds"))
+    results = append(results, res)
+
+    # restore saving these data?
+    # move these somewhere else
+    # saveRDS(data, paste0("results/data_",K,".rds"))
+    # saveRDS(res, paste0("results/res_",K,".rds"))
+    # saveRDS(input_data, paste0("results/input_data_",K,".rds"))
+
+
+    # plotting
+    # potrei evitare di passare input_data e passare direttamente S (numero di segmenti) 
+
+    #passaggio evitabile ma così è subito pronto per la funzione di plot per ogni K senno vanno cjiamati gli specifici res e input per ogni K
+    input_for_plot = list(res = res, input = input, data = data, K = K)
+    saveRDS(input_for_plot, paste0("./results/input_for_plot_",K,".rds"))
+    # input_for_plot = readRDS("../../0/simulation_iteration_1/results/input_for_plot.rds")
+
+    
+    # plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
+    # ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
+
+  }
+  saveRDS(input_data_list, paste0("./results/input_data_list.rds"))
+  extended_results = list(data = data, accepted_mutations=accepted_mutations)
+
+return(results)
+
+}
 
 
 
 
 
+#' model_selection Function
+#'
+#' being able to perform model selection on already simulated data or real data and add rough initialization to the inference 
+#' @param data data: tibble [N × 9] (S3: tbl_df/tbl/data.frame): (key + attribute type) $mutation: chr, $allele: chr, $type: chr "private", $karyotype:chr "2:2" "2:2" "2:2" "2:2",$segment_id: int, $DP: int, $NV: int, $tau: num (0 for real case analysis or num for validation analysis), $segment_name:chr, $segment_name_real:chr = segment_idx to keep track of the accepted/non accepted segments. The table is ordered with respect to the segment_id attribute (is it necessary?)
+#' @param results list of lenght k_max of results form the variational method with the summary statistics of the draws from the approximate posterior
+#' @param purity sample purity: num
+#' @param max_attempts max number of repeated inference for ADVI: num
+#' @param INIT boolean variable to set the initialization phase to TRUE or FALSE:logi
+#' @param tolerance tolerance in the ELBO optimization procedure: num 
+#' @param compute_external_metric boolean variable to set the validation to TRUE or FALSE: logi
+#' @keywords fit
+#' @export
+#' @examples 
+#' fit_model_selection()
 
+
+model_selection = function(data, results, accepted_mutations, compute_external_metric = FALSE){
+
+  karyo <- data %>%
+  group_by(segment_id) %>%
+  summarise(karyotype = first(karyotype)) %>%
+  pull(karyotype)
+
+  if (length(karyo) <= 2){
+    k_max = (length(karyo)) 
+  } else if (length(karyo) <= 7){
+    k_max = (length(karyo)-1) 
+  } else if (length(karyo) <= 15) { 
+    k_max = ((floor(length(karyo)/2))-1)
+  } else{
+    k_max = ceiling(sqrt(length(karyo))) 
+  }
+
+  model_selection_tibble <- dplyr::tibble()
+  S <- length(unique(accepted_mutations$segment_id))
+
+  entropy_per_segment_matrix = matrix(0, k_max, S) # k_max rows and S columns
+  entropy_per_segment_matrix_norm = matrix(0, k_max, S)
+
+  for (K in 1:k_max) {
+
+    res <- results[[K]]
 
     # Plot ELBO values over iterations
     output_files <- res$latent_dynamics_files()
@@ -80,19 +149,10 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
     iterations <- elbo_data$iter  # iteration column
     elbo_values <- elbo_data$ELBO  # ELBO column
     elbo_df <- data.frame(iteration = iterations, elbo = elbo_values)
-    # saveRDS(elbo_df, paste0("./elbo_df_",K,".rds"))    
-    p <- ggplot(elbo_df, aes(x = iteration, y = elbo)) +
-    geom_line(color = "blue") +
-    labs(title = "ELBO Values over Iterations",
-        x = "Iteration",
-        y = "ELBO")
-    saveRDS(p, paste0("./elbo_vs_iterations_",K,".rds"))  
-
-    if (compute_external_metric){
-      compute_external_metric(accepted_mutations, res, K)   
-    }
-
-
+        
+    # if (compute_external_metric){
+    #   compute_external_metric(accepted_mutations, res, K)   
+    # }    
 
     ############################################
     # SELECT THE BEST MODEL 
@@ -103,7 +163,7 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
     total_number_params <- K+((K-1)*S)+2                    # tau = K, w = K*S, phi, kappa (dirichlet reparametrization)
     N <- nrow(accepted_mutations)
 
-    # Check log likelihood values 
+    # Check log likelihood values  POSSO ESTRARRE LA LOG LIK DIRETTAMENTE DAL MODELLO E NON DALLE GENERATED QUANTITIES? 
     lp__ <- res$draws("lp__")
     lp_approx__ <- res$draws("lp_approx__")
     log_lik_matrix <- extract_log_lik(stanfit, parameter_name = "log_lik", merge_chains = TRUE) # merge chains potrebbe non servire
@@ -119,7 +179,7 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
 
     # Calculate ICL --> move outside the main function
     # Generate names for w[sim_params_num, K] format
-    names_weights <- outer(1:input_data$S, 1:K, 
+    names_weights <- outer(1:S, 1:K, 
                 FUN = function(i, j) paste0("w[", i, ",", j, "]"))
     names_weights <- as.vector(names_weights)
     w_ICL <- as.matrix(stanfit, pars = names_weights)
@@ -152,7 +212,6 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
 
     model_selection_tibble <- dplyr::bind_rows(model_selection_tibble, dplyr::tibble(K = K, BIC = BIC, AIC = AIC, LOO = loo_value, Log_lik = L, ICL = ICL))
 
-
     # ICL PER SEGMENT to see its behaviour with increasing K
     post_Segments = t(w_ICL)
     entropy_per_segment = c()
@@ -181,38 +240,9 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
     entropy_per_segment_matrix_norm[K,] = entropy_per_segment_norm
     entropy_per_segment_matrix[K,] = entropy_per_segment
 
-    # restore saving these data?
-    # move these somewhere else
-    # saveRDS(data, paste0("results/data_",K,".rds"))
-    # saveRDS(res, paste0("results/res_",K,".rds"))
-    # saveRDS(input_data, paste0("results/input_data_",K,".rds"))
-
-
-    # plotting
-    # potrei evitare di passare input_data e passare direttamente S (numero di segmenti) 
-
-    #passaggio evitabile ma così è subito pronto per la funzione di plot per ogni K senno vanno cjiamati gli specifici res e input per ogni K
-    input_for_plot = list(res = res, input = input, data = data, K = K)
-    saveRDS(input_for_plot, paste0("./results/input_for_plot_",K,".rds"))
-    # input_for_plot = readRDS("../../0/simulation_iteration_1/results/input_for_plot.rds")
-
-    p <- plotting_fit(res, input, data, K)
-    input_data = input$input_data
-    accepted_mutations = input$accepted_mutations
-    ggsave(paste0("./plots/plot_inference_",K,".png"), width = (12 + (input_data$S/2)), height = (16 + (input_data$S/2)), limitsize = FALSE, device = png, plot=p)
-
-    # plot_partition = plotting_cluster_partition(res, K, VALIDATION=TRUE)
-    # ggsave(paste0("./plots/inferred_partition_",K,".png"), width = 8, height = 5, limitsize = FALSE, device = png, plot=plot_partition)
-
-  }
-    
-  # plot the entropy behaviour 
-  if (k_max>2){
-  print(paste0("k_max: ", k_max))
-  plot_entropy <- plotting_entropy(entropy_per_segment_matrix, entropy_per_segment_matrix_norm, K)
-  ggsave(paste0("./plot_entropy.png"),width = (6 + (K*2)), height = (5), plot = plot_entropy)
   }
 
+  entropy_list <- list(entropy_per_segment_matrix = entropy_per_segment_matrix, entropy_per_segment_matrix_norm = entropy_per_segment_matrix_norm)
 
   model_selection_tibble_temp <- model_selection_tibble[1:2, bycol= TRUE]
   best_K_temp <- model_selection_tibble_temp %>% dplyr::filter(BIC == min(BIC)) %>% pull(K)   
@@ -234,56 +264,10 @@ fit_model_selection_best_K = function(data, purity, max_attempts=2, INIT=TRUE, t
   if(best_K==k_max){
   cli::cli_alert_info("The algorithm should be run with more Components ")
   }
-  
 
-  input <- prepare_input_data(data, karyo, best_K, purity=purity, VALIDATION == FALSE)
-  input_data = input$input_data
-  accepted_mutations = input$accepted_mutations
-  saveRDS(input, paste0("./results/input_",best_K,".rds"))
-
-
-  if (INIT==TRUE){
-  inits_chain <- get_init_simpler(accepted_mutations, best_K, purity = purity)
-  #  inits_chain <- get_init(tau_single_inference, best_K)
-  print(paste0("These are the values used for initializing the model ",inits_chain))
-
-  input_for_fit_variational = list( input_data = input_data, max_attempts = max_attempts, initialization = inits_chain, INIT = TRUE, tolerance = tolerance)
-  saveRDS(input_for_fit_variational, paste0("./results/input_for_fit_variational.rds"))
-  # input_for_fit_variational = readRDS("../../0/simulation_iteration_1/results/input_for_fit_variational.rds")
-  res <- fit_variational(input_data, max_attempts=max_attempts, initialization = inits_chain, INIT=TRUE, tolerance = tolerance)
-  } else {
-    res <- fit_variational(input_data, max_attempts=max_attempts, INIT=FALSE, tolerance = tolerance)
-  }
-  saveRDS(res, paste0("./results/res_",best_K,".rds"))
-
-
-  if (compute_external_metric){
-  compute_external_metric(accepted_mutations, res, best_K, best_K = TRUE)   
-  }
-
-
-  #passaggio evitabile ma così è subito pronto per la funzione di plot per ogni K senno vanno cjiamati gli specifici res e input per ogni K (se res e input non  mi servono per altro allora meglio così, senno meglio separatamente, comunque best_k result va dato separato)
-  input_for_plot = list(res = res, input = input, data = data, K = best_K)
-  saveRDS(input_for_plot, paste0("./results/input_for_plot_",best_K,".rds"))
-  # input_for_plot = readRDS("../../0/simulation_iteration_1/results/input_for_plot.rds")
-
-
-  p_best_K <- plotting_fit(res, input, data, best_K)
-  ggsave(paste0("./plots/plot_inference_",best_K,"_best_K.png"), width = (12 + (input_data$S/2)), height = (16 + (input_data$S/2)), limitsize = FALSE, device = png, plot=p_best_K)    
-
-  p_elbo_iter <- plotting_elbo(k_max)
-  ggsave(paste0("./elbo_vs_iterations_.png"),width = (20 + (input_data$S/2)), height = (10 + (input_data$S/2)), plot = p_elbo_iter)
-
-
-  extended_results = list(data = data, model_selection_tibble = model_selection_tibble, res_best_K=res, best_K=best_K, input_data=input_data, accepted_mutations=accepted_mutations)
-return(res)
-
+result_model_selection = list(best_K = best_K, model_selection_tibble = model_selection_tibble, entropy_list = entropy_list)
+return (result_model_selection)
 }
-
-
-
-
-
 
 
 
